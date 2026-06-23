@@ -169,3 +169,48 @@ class TestCliNoCommand:
         assert exit_code == 0
         out = capsys.readouterr().out
         assert "usage:" in out.lower() or "available commands" in out.lower()
+
+
+class TestCliSagaCreate:
+    def test_saga_create_command(self, cli_module, capsys):
+        """``saga create`` command calls create_saga and returns saga_id."""
+        with patch("a2a_orchestrator.server.create_saga",
+                   return_value={"ok": True, "saga_id": "saga-cli001",
+                                 "reason": "created"}):
+            exit_code = cli_module.main([
+                "saga", "create",
+                "--root-session", "conv-cli-saga",
+                "--metadata", '{"task":"migration"}',
+            ])
+        assert exit_code == 0
+        out = capsys.readouterr().out
+        parsed = json.loads(out)
+        assert parsed["ok"] is True
+        assert parsed["saga_id"] == "saga-cli001"
+        assert parsed["reason"] == "created"
+
+    def test_saga_create_command_no_metadata(self, cli_module, capsys):
+        """``saga create`` without --metadata works (empty string)."""
+        with patch("a2a_orchestrator.server.create_saga",
+                   return_value={"ok": True, "saga_id": "saga-cli002",
+                                 "reason": "created"}):
+            exit_code = cli_module.main([
+                "saga", "create",
+                "--root-session", "conv-cli-saga-2",
+            ])
+        assert exit_code == 0
+        out = capsys.readouterr().out
+        parsed = json.loads(out)
+        assert parsed["ok"] is True
+
+    def test_saga_create_command_failure_exit_1(self, cli_module, capsys):
+        """``saga create`` with invalid metadata → exit code 1."""
+        with patch("a2a_orchestrator.server.create_saga",
+                   return_value={"ok": False, "saga_id": "",
+                                 "reason": "metadata is not valid JSON"}):
+            exit_code = cli_module.main([
+                "saga", "create",
+                "--root-session", "conv-cli-saga-3",
+                "--metadata", "{bad",
+            ])
+        assert exit_code == 1

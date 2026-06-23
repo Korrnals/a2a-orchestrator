@@ -191,6 +191,19 @@ def _cmd_saga_status(args: argparse.Namespace) -> int:
     return 0 if result.get("ok") else 1
 
 
+def _cmd_saga_create(args: argparse.Namespace) -> int:
+    """Create a new saga."""
+    from .server import create_saga
+
+    result = create_saga(
+        root_session_id=args.root_session,
+        metadata=args.metadata or "",
+        tenant_id=args.tenant_id,
+    )
+    _print_json(result)
+    return 0 if result.get("ok") else 1
+
+
 def _cmd_register(args: argparse.Namespace) -> int:
     """Register an external agent."""
     from pathlib import Path
@@ -407,6 +420,14 @@ def build_parser() -> argparse.ArgumentParser:
     saga_status_parser.add_argument("--tenant-id", default="default",
                                     help="Tenant id (default: default).")
     saga_status_parser.set_defaults(func=_cmd_saga_status)
+    saga_create_parser = saga_sub.add_parser("create", help="Create a new saga.")
+    saga_create_parser.add_argument("--root-session", required=True,
+                                    help="Root session id for the saga.")
+    saga_create_parser.add_argument("--metadata", default="",
+                                    help='JSON string metadata (e.g. \'{"task":"x"}\').')
+    saga_create_parser.add_argument("--tenant-id", default="default",
+                                    help="Tenant id (default: default).")
+    saga_create_parser.set_defaults(func=_cmd_saga_create)
 
     # --- register --- #
     register_parser = subparsers.add_parser("register",

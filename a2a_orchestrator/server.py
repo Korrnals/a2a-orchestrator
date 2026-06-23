@@ -719,6 +719,63 @@ def get_saga_status(saga_id: str, tenant_id: str = DEFAULT_TENANT) -> dict[str, 
 
 
 @mcp.tool()
+def create_saga(
+    root_session_id: str,
+    metadata: str = "",
+    tenant_id: str = DEFAULT_TENANT,
+) -> dict[str, Any]:
+    """Create a new saga for long-lived multi-chain dialog state.
+
+    A saga allows multiple A2A chains to share budget and state
+    across a single logical task. Budget per saga: 6 calls.
+
+    Args:
+        root_session_id: The session id that initiated the saga.
+        metadata: Optional JSON string of free-form metadata (e.g.
+            ``'{"task":"migration"}'``). Empty string means no metadata.
+        tenant_id: Tenant id (default: ``"default"``). The saga is
+            created in this tenant's saga store (tenant isolation).
+
+    Returns:
+        ``{ok: bool, saga_id: str, reason: str}``
+    """
+    # Parse metadata JSON string → dict (empty/invalid → empty dict).
+    metadata_dict: dict[str, Any] = {}
+    if metadata:
+        try:
+            parsed = json.loads(metadata)
+        except json.JSONDecodeError as exc:
+            return {
+                "ok": False,
+                "saga_id": "",
+                "reason": f"metadata is not valid JSON: {exc}",
+            }
+        if not isinstance(parsed, dict):
+            return {
+                "ok": False,
+                "saga_id": "",
+                "reason": "metadata must be a JSON object, not a scalar/array.",
+            }
+        metadata_dict = parsed
+
+    try:
+        ctx = _resolve_tenant(tenant_id)
+        saga = ctx.saga_store.create_saga(
+            root_session_id=root_session_id,
+            metadata=metadata_dict,
+        )
+    except Exception as exc:  # pragma: no cover — defensive
+        log.exception("create_saga failed")
+        return {"ok": False, "saga_id": "", "reason": str(exc)}
+
+    return {
+        "ok": True,
+        "saga_id": saga.saga_id,
+        "reason": "created",
+    }
+
+
+@mcp.tool()
 def search_messages(
     query: str,
     session_id: str = "",
