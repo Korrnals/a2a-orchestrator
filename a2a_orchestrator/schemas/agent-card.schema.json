@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Korrnals/a2a-orchestrator/schemas/agent-card.schema.json",
+  "title": "A2A Agent Card",
+  "description": "A2A-compatible descriptor for an agent. The card is the contract that lets other agents (and the MCP orchestrator) understand who this agent is, what they accept, and what they expect. Universal — works with any kebab-case agent id, not just GCW-prefixed ones.",
+  "type": "object",
+  "required": ["id", "name", "version", "plugin", "agent_file", "capabilities", "routing"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Stable A2A identifier. Lowercase kebab-case. Persists across renames of name: or label: — this is the only field A2A messages use to route."
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name as it appears in the chat picker."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-z0-9.-]+)?$",
+      "description": "Card version (semver). Bump on capability or routing change."
+    },
+    "plugin": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Owning plugin or namespace. Used by installer to scope install/uninstall."
+    },
+    "agent_file": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*\\.agent\\.md$",
+      "description": "Path to the agent definition file, relative to plugin root."
+    },
+    "description": {
+      "type": "string",
+      "description": "One-line description. May be empty if the agent is internal-only."
+    },
+    "model_tier": {
+      "type": "string",
+      "enum": ["flagship", "flagship-reasoning", "strong", "strong-coding", "strong-writing", "fast", "cheap"],
+      "description": "Model tier the agent uses. Drives fallback chain resolution."
+    },
+    "tool_profile": {
+      "type": "string",
+      "description": "Tool profile name (resolved via tool-profiles.yaml)."
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "List of capabilities this agent owns. Stable strings (kebab-case). Used by routing-keyword matching and by users searching the directory."
+    },
+    "routing": {
+      "type": "object",
+      "required": ["accepts_routes_from", "routing_keywords"],
+      "additionalProperties": false,
+      "properties": {
+        "accepts_routes_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "description": "Whitelist of A2A ids that may route TO this agent. Empty list = nobody may route here (rare)."
+        },
+        "routing_keywords": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Phrases (single or multi-word) that suggest this agent handles the request. Matching is case-insensitive substring."
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Free-form tags for cross-conversation search."
+    },
+    "max_chain_depth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Override of the global max chain depth (default 3). Use for agents that commonly sit at the end of long chains — set to 5 to allow more room before budget kicks in. For agents that should never be deep in a chain, set to 1."
+    },
+    "public_key": {
+      "type": "string",
+      "description": "Optional base64 Ed25519 public key for message signature verification (R6). When present, all messages from this agent must be signed."
+    },
+    "tenant_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Optional tenant id for multi-tenant isolation. Defaults to 'default' when omitted."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "a2a-orchestrator": {
+      "command": "python3",
+      "args": ["-m", "a2a_orchestrator"],
+      "env": {
+        "A2A_CARDS_DIR": "/path/to/your/agent-cards",
+        "MNEMOS_BASE_URL": "http://127.0.0.1:8787"
+      }
+    }
+  }
+}

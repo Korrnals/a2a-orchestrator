@@ -1,0 +1,17 @@
+{
+  "id": "agent-backend",
+  "name": "Backend Engineer",
+  "version": "1.0.0",
+  "plugin": "my-project",
+  "agent_file": "backend.agent.md",
+  "description": "Backend engineer handling API and server-side logic.",
+  "model_tier": "strong-coding",
+  "tool_profile": "senior-implementer",
+  "capabilities": ["api-design", "backend", "python", "database-queries"],
+  "routing": {
+    "accepts_routes_from": ["agent-qa", "agent-database"],
+    "routing_keywords": ["api", "backend", "server", "endpoint", "python"]
+  },
+  "tags": ["backend", "api", "python"],
+  "max_chain_depth": 3
+}

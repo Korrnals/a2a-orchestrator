@@ -1,0 +1,17 @@
+{
+  "id": "agent-qa",
+  "name": "QA Engineer",
+  "version": "1.0.0",
+  "plugin": "my-project",
+  "agent_file": "qa.agent.md",
+  "description": "QA engineer handling test design, automation, and quality gates.",
+  "model_tier": "strong-coding",
+  "tool_profile": "senior-implementer",
+  "capabilities": ["test-design", "test-automation", "quality-gates", "regression"],
+  "routing": {
+    "accepts_routes_from": ["agent-backend", "agent-database"],
+    "routing_keywords": ["test", "qa", "quality", "regression", "coverage"]
+  },
+  "tags": ["qa", "testing", "automation"],
+  "max_chain_depth": 3
+}

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Korrnals/a2a-orchestrator/schemas/a2a-message.schema.json",
+  "title": "A2A Message",
+  "description": "Wire format for a single A2A message between two agents. Persisted by the a2a-orchestrator MCP server to Mnemos. Consumed by the target agent's runtime as system-context supplement. Universal — works with any kebab-case agent id.",
+  "type": "object",
+  "required": ["schema_version", "message_id", "session_id", "from", "to", "intent", "payload", "routing_meta"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.7.0",
+      "description": "Pin to a specific protocol version. Bump the constant and ship a migration if you change the wire format."
+    },
+    "message_id": {
+      "type": "string",
+      "pattern": "^msg-[a-z0-9-]{8,}$",
+      "description": "Unique per message. MCP generates (uuid-like)."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Mnemos session id this message belongs to. Multiple messages share a session_id; they form the chain."
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "A2A id of the sending agent (from its Agent Card)."
+    },
+    "signature": {
+      "type": "string",
+      "description": "Optional Ed25519 signature (base64) over canonical JSON of the message. Required when the sender's Agent Card has a public_key. Verified by R6."
+    },
+    "tenant_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Optional tenant id for multi-tenant isolation. Defaults to 'default' when omitted."
+    },
+    "to": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "A2A id of the intended receiving agent."
+    },
+    "intent": {
+      "type": "string",
+      "enum": ["handoff", "request-info", "share-finding", "request-review", "request-implementation", "request-documentation", "destructive-action-request"],
+      "description": "Why this message exists. Drives the target agent's response style and the loop/budget rules."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 500,
+      "description": "Human-readable one-paragraph explanation of why I'm handing off. Becomes the visible label in the user's UI when the switch happens."
+    },
+    "payload": {
+      "type": "object",
+      "required": ["summary"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 2000,
+          "description": "Short summary of what the sender has done/found. Replaces full chat history. Target agent uses this as system context."
+        },
+        "key_decisions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Bullet list of decisions made by the sender. Helps target agent avoid re-litigating."
+        },
+        "open_questions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Bullet list of things the target agent needs to resolve."
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "pointer"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["file", "diff", "test-result", "metric", "log", "memory-turn"]
+              },
+              "pointer": {
+                "type": "string",
+                "description": "Either a file path (relative to repo) or a memory:// URI pointing to Mnemos turn."
+              }
+            }
+          },
+          "description": "Pointers to artifacts the sender produced. Target agent may load_context() on them if needed."
+        }
+      }
+    },
+    "routing_meta": {
+      "type": "object",
+      "required": ["chain", "depth", "calls_remaining"],
+      "additionalProperties": false,
+      "properties": {
+        "chain": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "description": "Ordered list of A2A ids already in this chain (sender included). Used by loop-controller."
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "description": "How deep this message is in the chain. 0 = first A2A hop."
+        },
+        "calls_remaining": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Budget counter. 3 - depth = remaining. When 0, MCP rejects further A2A from this chain."
+        },
+        "parent_message_id": {
+          "type": ["string", "null"],
+          "description": "message_id of the message that triggered this one. Forms a tree if branches happen."
+        },
+        "saga_id": {
+          "type": "string",
+          "description": "Optional saga id for long-lived dialog state spanning multiple chains."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "agent-database",
+  "name": "Database Engineer",
+  "version": "1.0.0",
+  "plugin": "my-project",
+  "agent_file": "database.agent.md",
+  "description": "Database engineer handling schema, migrations, and query optimization.",
+  "model_tier": "strong-coding",
+  "tool_profile": "senior-implementer",
+  "capabilities": ["schema-design", "migration-review", "query-optimization", "sql"],
+  "routing": {
+    "accepts_routes_from": ["agent-backend", "agent-qa"],
+    "routing_keywords": ["database", "sql", "migration", "schema", "index"]
+  },
+  "tags": ["database", "sql", "postgres"],
+  "max_chain_depth": 2
+}
