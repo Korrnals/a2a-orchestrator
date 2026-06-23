@@ -2,15 +2,23 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Korrnals/a2a-orchestrator/schemas/agent-card.schema.json",
   "title": "A2A Agent Card",
-  "description": "A2A-compatible descriptor for an agent. The card is the contract that lets other agents (and the MCP orchestrator) understand who this agent is, what they accept, and what they expect. Universal — works with any kebab-case agent id, not just GCW-prefixed ones.",
+  "description": "A2A-compatible descriptor for an agent. The card is the contract that lets other agents (and the MCP orchestrator) understand who this agent is, what they accept, and what they expect. Universal \u2014 works with any kebab-case agent id, not just GCW-prefixed ones.",
   "type": "object",
-  "required": ["id", "name", "version", "plugin", "agent_file", "capabilities", "routing"],
+  "required": [
+    "id",
+    "name",
+    "version",
+    "plugin",
+    "agent_file",
+    "capabilities",
+    "routing"
+  ],
   "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*$",
-      "description": "Stable A2A identifier. Lowercase kebab-case. Persists across renames of name: or label: — this is the only field A2A messages use to route."
+      "description": "Stable A2A identifier. Lowercase kebab-case. Persists across renames of name: or label: \u2014 this is the only field A2A messages use to route."
     },
     "name": {
       "type": "string",
@@ -28,7 +36,7 @@
     },
     "agent_file": {
       "type": "string",
-      "pattern": "^[a-z][a-z0-9-]*\\.agent\\.md$",
+      "pattern": "^([a-z][a-z0-9-]*/)*[a-z][a-z0-9-]*\\.agent\\.md$",
       "description": "Path to the agent definition file, relative to plugin root."
     },
     "description": {
@@ -37,7 +45,15 @@
     },
     "model_tier": {
       "type": "string",
-      "enum": ["flagship", "flagship-reasoning", "strong", "strong-coding", "strong-writing", "fast", "cheap"],
+      "enum": [
+        "flagship",
+        "flagship-reasoning",
+        "strong",
+        "strong-coding",
+        "strong-writing",
+        "fast",
+        "cheap"
+      ],
       "description": "Model tier the agent uses. Drives fallback chain resolution."
     },
     "tool_profile": {
@@ -55,7 +71,10 @@
     },
     "routing": {
       "type": "object",
-      "required": ["accepts_routes_from", "routing_keywords"],
+      "required": [
+        "accepts_routes_from",
+        "routing_keywords"
+      ],
       "additionalProperties": false,
       "properties": {
         "accepts_routes_from": {
@@ -78,14 +97,16 @@
     },
     "tags": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Free-form tags for cross-conversation search."
     },
     "max_chain_depth": {
       "type": "integer",
       "minimum": 1,
       "maximum": 5,
-      "description": "Override of the global max chain depth (default 3). Use for agents that commonly sit at the end of long chains — set to 5 to allow more room before budget kicks in. For agents that should never be deep in a chain, set to 1."
+      "description": "Override of the global max chain depth (default 3). Use for agents that commonly sit at the end of long chains \u2014 set to 5 to allow more room before budget kicks in. For agents that should never be deep in a chain, set to 1."
     },
     "public_key": {
       "type": "string",
