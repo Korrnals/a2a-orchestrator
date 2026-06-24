@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "a2a-orchestrator"
-version = "0.9.0"
+version = "1.0.0"
 description = "Universal MCP server for A2A routing between agents. Performs R1-R6 routing checks, saga pattern, signed messages, multi-tenant, WebSocket streaming, vector search, web/HTTP wrapper, and external agent registration. Persists messages to Mnemos or JSONL fallback."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -53,15 +53,15 @@ Homepage = "https://github.com/Korrnals/a2a-orchestrator"
 # --------------------------------------------------------------------------- #
 
 [tool.hatch.build.targets.wheel]
-packages = ["a2a_orchestrator"]
+packages = ["src/a2a_orchestrator"]
 
 # Include embedded schemas as package data.
 [tool.hatch.build.targets.wheel.force-include]
-"a2a_orchestrator/schemas" = "a2a_orchestrator/schemas"
+"src/a2a_orchestrator/schemas" = "a2a_orchestrator/schemas"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "a2a_orchestrator",
+    "src/a2a_orchestrator",
     "tests",
     "examples",
     "README.md",
@@ -75,7 +75,7 @@ include = [
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-src = ["a2a_orchestrator", "tests"]
+src = ["src/a2a_orchestrator", "tests"]
 
 [tool.ruff.lint]
 select = [

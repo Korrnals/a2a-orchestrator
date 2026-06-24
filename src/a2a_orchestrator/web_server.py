@@ -23,6 +23,7 @@ CORS and API key auth are configurable via environment variables.
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Any
 
 # FastAPI is an optional dependency — import lazily so the module can
@@ -66,7 +67,11 @@ def _api_key_dependency() -> Any:
 
     async def _check_auth(request: Request) -> bool:
         provided = request.headers.get("X-API-Key", "")
-        if provided != expected_key:
+        # H2 fix: constant-time comparison to prevent timing attacks
+        # that could leak the expected key byte-by-byte. ``!=`` short-
+        # circuits on the first mismatched character, exposing timing
+        # side-channels. ``secrets.compare_digest`` is designed for this.
+        if not secrets.compare_digest(provided, expected_key):
             raise HTTPException(status_code=401, detail="Invalid or missing API key")
         return True
 
@@ -131,6 +136,19 @@ def create_app(server_module: Any | None = None) -> Any:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # L1 fix: security headers middleware. Adds standard defensive
+    # headers to every response to prevent MIME-sniffing and clickjacking.
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next: Any) -> Any:
+        response = await call_next(request)
+        # Prevent MIME-type sniffing — browser must trust declared Content-Type.
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        # Prevent clickjacking — this API must not be framed.
+        response.headers["X-Frame-Options"] = "DENY"
+        # Referrer-Policy: send origin only on cross-origin requests.
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
 
     auth_dep = _api_key_dependency()
 

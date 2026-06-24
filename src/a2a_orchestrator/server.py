@@ -109,7 +109,15 @@ def set_consent_provider(provider: ConsentProvider) -> None:
 
 
 def _resolve_tenant(tenant_id: str) -> TenantContext:
-    """Return the TenantContext for ``tenant_id``, creating it if needed."""
+    """Return the TenantContext for ``tenant_id``, creating it if needed.
+
+    H1 fix: validate tenant_id before any path operation. The default
+    tenant short-circuits to the pre-built context (no path join), but
+    we still validate to give early, clear errors for malformed ids.
+    """
+    # H1 fix: reject path-traversal / malformed tenant ids early.
+    from .tenant import _validate_tenant_id
+    _validate_tenant_id(tenant_id)
     if tenant_id == DEFAULT_TENANT:
         return _default_ctx
     return tenant_manager.get_or_create(tenant_id)
@@ -217,6 +225,7 @@ def _persist(
     outcome: str,
     rejection_reason: str | None = None,
     store: MessageStore | None = None,
+    tenant_id: str = DEFAULT_TENANT,
 ) -> None:
     """Persist a message to Mnemos, falling back to JSONL on failure.
 
@@ -231,6 +240,9 @@ def _persist(
         store: The tenant-specific MessageStore to write to. If ``None``,
             falls back to the default tenant's message_store (backward
             compat for tests that call _persist directly).
+        tenant_id: Tenant id for Mnemos session isolation. The Mnemos
+            session_id is prefixed with ``f"{tenant_id}:"`` so that
+            tenants cannot read each other's turns (H4 fix).
     """
     turn_body: dict[str, Any] = {
         "role": "a2a_message",
@@ -256,7 +268,12 @@ def _persist(
                       message.get("message_id"))
 
     try:
-        mnemos_client.write_turn(message.get("session_id", ""), turn_body)
+        # H4 fix: prefix the Mnemos session_id with tenant_id so that
+        # tenants are isolated at the storage layer. Without this, any
+        # tenant could call load_context with another tenant's
+        # session_id and read its turns from Mnemos.
+        mnemos_session = f"{tenant_id}:{message.get('session_id', '')}"
+        mnemos_client.write_turn(mnemos_session, turn_body)
         metrics.record_mnemos_write()
     except MnemosUnavailableError as exc:
         log.warning("Mnemos unavailable, JSONL fallback active: %s", exc)
@@ -366,10 +383,11 @@ def send_a2a(
         log.warning("A2A message failed schema validation: %s", exc)
         _persist(message, outcome="rejected",
                  rejection_reason=f"schema_validation_failed: {exc}",
-                 store=t_message_store)
+                 store=t_message_store, tenant_id=tenant_id)
         t_metrics.record_rejected("SCHEMA_INVALID")
         broadcast_event(session_id, "a2a_rejected",
-                        {"code": "SCHEMA_INVALID", "message_id": message["message_id"]})
+                        {"code": "SCHEMA_INVALID", "message_id": message["message_id"]},
+                        tenant_id=tenant_id)
         return {
             "ok": False,
             "code": "SCHEMA_INVALID",
@@ -382,12 +400,14 @@ def send_a2a(
     if rejection is not None:
         log.info("A2A REJECTED %s→%s: %s", from_id, target, rejection.code)
         _persist(message, outcome="rejected",
-                 rejection_reason=rejection.code, store=t_message_store)
+                 rejection_reason=rejection.code, store=t_message_store,
+                 tenant_id=tenant_id)
         session.record_message({**message, "outcome": "rejected",
                                 "rejection_code": rejection.code})
         t_metrics.record_rejected(rejection.code)
         broadcast_event(session_id, "a2a_rejected",
-                        {"code": rejection.code, "message_id": message["message_id"]})
+                        {"code": rejection.code, "message_id": message["message_id"]},
+                        tenant_id=tenant_id)
         return {
             "ok": False,
             "code": rejection.code,
@@ -402,12 +422,14 @@ def send_a2a(
     if sig_rejection is not None:
         log.info("A2A REJECTED %s→%s: %s", from_id, target, sig_rejection.code)
         _persist(message, outcome="rejected",
-                 rejection_reason=sig_rejection.code, store=t_message_store)
+                 rejection_reason=sig_rejection.code, store=t_message_store,
+                 tenant_id=tenant_id)
         session.record_message({**message, "outcome": "rejected",
                                 "rejection_code": sig_rejection.code})
         t_metrics.record_rejected(sig_rejection.code)
         broadcast_event(session_id, "a2a_rejected",
-                        {"code": sig_rejection.code, "message_id": message["message_id"]})
+                        {"code": sig_rejection.code, "message_id": message["message_id"]},
+                        tenant_id=tenant_id)
         return {
             "ok": False,
             "code": sig_rejection.code,
@@ -430,13 +452,14 @@ def send_a2a(
             log.info("A2A REJECTED R5 (consent denied): %s", exc.reason)
             _persist(message, outcome="rejected",
                      rejection_reason="R5_DESTRUCTIVE_DENIED",
-                     store=t_message_store)
+                     store=t_message_store, tenant_id=tenant_id)
             session.record_message({**message, "outcome": "rejected",
                                     "rejection_code": "R5_DESTRUCTIVE_DENIED"})
             t_metrics.record_rejected("R5_DESTRUCTIVE_DENIED")
             broadcast_event(session_id, "a2a_rejected",
                             {"code": "R5_DESTRUCTIVE_DENIED",
-                             "message_id": message["message_id"]})
+                             "message_id": message["message_id"]},
+                            tenant_id=tenant_id)
             return {
                 "ok": False,
                 "code": "R5_DESTRUCTIVE_DENIED",
@@ -453,13 +476,14 @@ def send_a2a(
             log.info("A2A REJECTED %s→%s: SAGA_NOT_FOUND", from_id, target)
             _persist(message, outcome="rejected",
                      rejection_reason="SAGA_NOT_FOUND",
-                     store=t_message_store)
+                     store=t_message_store, tenant_id=tenant_id)
             session.record_message({**message, "outcome": "rejected",
                                     "rejection_code": "SAGA_NOT_FOUND"})
             t_metrics.record_rejected("SAGA_NOT_FOUND")
             broadcast_event(session_id, "a2a_rejected",
                             {"code": "SAGA_NOT_FOUND",
-                             "message_id": message["message_id"]})
+                             "message_id": message["message_id"]},
+                            tenant_id=tenant_id)
             return {
                 "ok": False,
                 "code": "SAGA_NOT_FOUND",
@@ -469,13 +493,14 @@ def send_a2a(
         if not ctx.saga_store.record_call(saga_id):
             _persist(message, outcome="rejected",
                      rejection_reason="SAGA_BUDGET_EXHAUSTED",
-                     store=t_message_store)
+                     store=t_message_store, tenant_id=tenant_id)
             session.record_message({**message, "outcome": "rejected",
                                     "rejection_code": "SAGA_BUDGET_EXHAUSTED"})
             t_metrics.record_rejected("SAGA_BUDGET_EXHAUSTED")
             broadcast_event(session_id, "a2a_rejected",
                             {"code": "SAGA_BUDGET_EXHAUSTED",
-                             "message_id": message["message_id"]})
+                             "message_id": message["message_id"]},
+                            tenant_id=tenant_id)
             return {
                 "ok": False,
                 "code": "SAGA_BUDGET_EXHAUSTED",
@@ -484,7 +509,8 @@ def send_a2a(
             }
 
     # --- 8. Persist (Mnemos → JSONL fallback) ------------------------- #
-    _persist(message, outcome="delivered", store=t_message_store)
+    _persist(message, outcome="delivered", store=t_message_store,
+             tenant_id=tenant_id)
 
     # --- 9. Update session chain/budget ------------------------------- #
     session.append_hop(from_id, target)
@@ -506,12 +532,12 @@ def send_a2a(
         "message_id": message["message_id"],
         "depth": session.depth(),
         "saga_id": saga_id,
-    })
+    }, tenant_id=tenant_id)
     broadcast_event(session_id, "chain_updated", {
         "chain": list(session.chain),
         "depth": session.depth(),
         "budget_used": session.budget_used,
-    })
+    }, tenant_id=tenant_id)
 
     return {
         "ok": True,
@@ -552,10 +578,14 @@ def load_context(
     # only sees messages from the caller's tenant.
     ctx = _resolve_tenant(tenant_id)
     t_message_store = ctx.message_store
+    # H4 fix: prefix session_id with tenant_id for Mnemos calls so that
+    # tenants are isolated at the storage layer. Without this prefix, any
+    # tenant could read any other tenant's turns by guessing the session_id.
+    mnemos_session = f"{tenant_id}:{session_id}"
     # --- 1. Try Mnemos first (if turn_id provided) -------------------- #
     if turn_id:
         try:
-            turn = mnemos_client.get_turn(session_id, turn_id, mode=mode)
+            turn = mnemos_client.get_turn(mnemos_session, turn_id, mode=mode)
             content = turn.get("content") or turn.get("body") or ""
             if isinstance(content, str):
                 try:
@@ -579,7 +609,7 @@ def load_context(
             # Fetch a range of turns and search for the message_id.
             # We fetch up to 100 turns (step 0-99) — covers most sessions.
             range_resp = mnemos_client.get_turn_range(
-                session_id, from_step=0, to_step=99, mode=mode,
+                mnemos_session, from_step=0, to_step=99, mode=mode,
             )
             turns = range_resp.get("turns", []) or range_resp.get("items", [])
             for turn in turns:

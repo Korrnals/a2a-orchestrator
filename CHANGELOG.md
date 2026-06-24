@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-24
+
+### Changed
+- Project restructured: `a2a_orchestrator/` → `src/a2a_orchestrator/` (standard Python src layout)
+- README rewritten: 900 lines → 84 lines (EN) + 85 lines (RU), content moved to `docs/`
+- Created `docs/` directory: 30 files (14 EN + 14 RU + index + SVG banner)
+- Created SVG banner: `docs/assets/a2a-banner.svg`
+
+### Fixed (Security)
+- H1: Path traversal via tenant_id — regex validation before path operations
+- H2: Non-constant-time API key comparison — `secrets.compare_digest()`
+- H3: Non-constant-time WS auth token — `secrets.compare_digest()`
+- H4: Cross-tenant Mnemos access — tenant-prefixed session_id in Mnemos calls
+- M1: WebSocket tenant isolation — composite key `tenant_id:session_id`
+- M2: JSONL file permissions — `0o600` on creation
+- M3: Challenge replay window — consumed immediately after signature verification
+- L1: Security headers — X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- L2: JSONL log rotation — 50 MiB default, configurable
+- L3: Challenge rate limiting — per-agent, 2 per 5s
+
+### Added
+- 37 new security tests (278 total)
+- Language switcher in README (EN ↔ RU)
+- Professional SVG banner
+
+
+
 ## [0.9.0] - 2026-06-24
 
 ### Added

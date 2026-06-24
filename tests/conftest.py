@@ -198,6 +198,22 @@ def cards_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture()
+def reg_service(cards_dir):
+    """Create a RegistrationService with a loaded registry.
+
+    Shared fixture so both test_registration.py and test_security_fixes.py
+    can use it without duplicating the setup.
+    """
+    from a2a_orchestrator.registration import RegistrationService
+    from a2a_orchestrator.registry import AgentCardRegistry
+    from a2a_orchestrator.signing import KeyStore
+    reg = AgentCardRegistry(cards_dir=cards_dir)
+    reg.load()
+    store = KeyStore()
+    return RegistrationService(registry=reg, key_store=store)
+
+
+@pytest.fixture()
 def env_isolated(schemas_dir: Path, cards_dir: Path,
                   monkeypatch: pytest.MonkeyPatch) -> None:
     """Set env vars so config resolves to the temp schemas/cards dirs.

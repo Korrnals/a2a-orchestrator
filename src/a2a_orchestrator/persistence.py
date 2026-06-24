@@ -28,6 +28,13 @@ from typing import Any
 
 from .config import FALLBACK_JSONL_PATH
 
+# L2 fix: default max size for the JSONL fallback file (50 MiB). When
+# the file exceeds this size, it is rotated: the current file is renamed
+# to ``<path>.1`` (overwriting any previous rotation) and a new empty
+# file is created. This prevents unbounded disk growth in long-running
+# deployments where Mnemos is unavailable. Set to 0 to disable rotation.
+DEFAULT_MAX_JSONL_BYTES = 50 * 1024 * 1024
+
 
 class _DefaultPathSentinel:
     """Sentinel for ``MessageStore(path=...)`` meaning "use FALLBACK_JSONL_PATH".
@@ -64,10 +71,13 @@ class MessageStore:
     def __init__(
         self,
         path: Path | str | None | _DefaultPathSentinel = _DEFAULT_PATH,
+        max_bytes: int = DEFAULT_MAX_JSONL_BYTES,
     ) -> None:
         if isinstance(path, _DefaultPathSentinel):
             path = FALLBACK_JSONL_PATH
         self._path: Path | None = Path(path) if path else None
+        # L2 fix: max file size before rotation. 0 disables rotation.
+        self._max_bytes = max_bytes
         self._messages: list[dict[str, Any]] = []
         self._lock = threading.Lock()
 
@@ -158,12 +168,27 @@ class MessageStore:
     # ------------------------------------------------------------------ #
 
     def _ensure_dir(self) -> None:
-        """Create the parent directory of the JSONL file if missing."""
+        """Create the parent directory of the JSONL file if missing.
+
+        M2 fix: also restricts the JSONL file to owner-only (0o600) on
+        first creation so that sensitive A2A message payloads (which may
+        contain summaries, decisions, artifact pointers) are not
+        readable by other processes on the host.
+        """
         if self._path is None:
             return
         parent = self._path.parent
         if not parent.exists():
             parent.mkdir(parents=True, exist_ok=True)
+        # M2 fix: restrict file permissions to owner-only on first
+        # creation. We only chmod if the file does not yet exist, so we
+        # don't override permissions on a pre-existing file the user may
+        # have intentionally set. Subsequent appends preserve the mode.
+        if not self._path.exists():
+            # Create the file with 0o600 via low-level os.open so there
+            # is no window where the file exists with default umask.
+            fd = os.open(self._path, os.O_CREAT | os.O_WRONLY, 0o600)
+            os.close(fd)
 
     def _write_line(self, message: dict[str, Any]) -> None:
         """Append one JSON line to the JSONL file atomically.
@@ -179,12 +204,39 @@ class MessageStore:
         """
         self._ensure_dir()
         assert self._path is not None
+        # L2 fix: rotate the file if it exceeds the size limit. This
+        # prevents unbounded disk growth in long-running deployments
+        # where Mnemos is unavailable and every message hits JSONL.
+        self._maybe_rotate()
         line = json.dumps(message, ensure_ascii=False, sort_keys=True) + "\n"
         # O_APPEND ensures every write seeks to end-of-file atomically.
         with open(self._path, "a", encoding="utf-8") as fh:
             fh.write(line)
             fh.flush()
             os.fsync(fh.fileno())
+
+    def _maybe_rotate(self) -> None:
+        """Rotate the JSONL file if it exceeds ``self._max_bytes``.
+
+        L2 fix: renames the current file to ``<path>.1`` (overwriting any
+        previous rotation) so the audit trail is preserved but bounded.
+        Called under ``self._lock`` from :meth:`_write_line`. Rotation
+        is disabled when ``self._max_bytes`` is 0.
+        """
+        if self._path is None or self._max_bytes <= 0:
+            return
+        if not self._path.exists():
+            return
+        try:
+            if self._path.stat().st_size >= self._max_bytes:
+                rotated = self._path.with_suffix(self._path.suffix + ".1")
+                # os.replace is atomic on POSIX — no window where neither
+                # file exists. The old rotation (if any) is overwritten.
+                os.replace(self._path, rotated)
+        except OSError:
+            # If stat/replace fails (permissions, race), skip rotation
+            # and continue writing — better to log than to drop messages.
+            return
 
     def _load_from_file(self) -> None:
         """Read the JSONL file into the in-memory list (if empty).

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="100%" role="img" aria-labelledby="banner-title banner-desc">
+  <title id="banner-title">a2a-orchestrator</title>
+  <desc id="banner-desc">Agent-to-Agent Routing MCP Server — connected nodes A→B→C</desc>
+
+  <style>
+    .bg     { fill: #0d1117; }
+    .title  { font: 700 52px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #58a6ff; }
+    .sub    { font: 400 22px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #8b949e; }
+    .node   { font: 600 18px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #0d1117; }
+    .lbl    { font: 500 13px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #8b949e; }
+    .accent { stroke: #7ee787; }
+    .blue   { stroke: #58a6ff; }
+  </style>
+
+  <!-- Background -->
+  <rect class="bg" width="1200" height="300"/>
+
+  <!-- Subtle grid dots (decorative) -->
+  <g fill="#21262d" opacity="0.5">
+    <circle cx="60"   cy="60"  r="1.5"/>
+    <circle cx="120"  cy="60"  r="1.5"/>
+    <circle cx="60"   cy="120" r="1.5"/>
+    <circle cx="1140" cy="240" r="1.5"/>
+    <circle cx="1080" cy="240" r="1.5"/>
+    <circle cx="1140" cy="180" r="1.5"/>
+  </g>
+
+  <!-- Title block -->
+  <text class="title" x="600" y="110" text-anchor="middle">a2a-orchestrator</text>
+  <text class="sub"   x="600" y="145" text-anchor="middle">Agent-to-Agent Routing MCP Server</text>
+
+  <!-- Connected nodes: A → B → C chain -->
+  <g>
+    <!-- Connecting lines with arrowheads -->
+    <line x1="430" y1="225" x2="525" y2="225" class="blue"   stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+    <line x1="675" y1="225" x2="770" y2="225" class="accent" stroke-width="2.5" marker-end="url(#arrow-green)"/>
+
+    <!-- Node A -->
+    <circle cx="400" cy="225" r="30" fill="#58a6ff" stroke="#1f6feb" stroke-width="2"/>
+    <text class="node" x="400" y="231" text-anchor="middle">A</text>
+    <text class="lbl"  x="400" y="275" text-anchor="middle">agent-tech-lead</text>
+
+    <!-- Node B -->
+    <circle cx="600" cy="225" r="30" fill="#7ee787" stroke="#2ea043" stroke-width="2"/>
+    <text class="node" x="600" y="231" text-anchor="middle">B</text>
+    <text class="lbl"  x="600" y="275" text-anchor="middle">agent-dba</text>
+
+    <!-- Node C -->
+    <circle cx="800" cy="225" r="30" fill="#58a6ff" stroke="#1f6feb" stroke-width="2"/>
+    <text class="node" x="800" y="231" text-anchor="middle">C</text>
+    <text class="lbl"  x="800" y="275" text-anchor="middle">agent-backend</text>
+  </g>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#58a6ff"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7ee787"/>
+    </marker>
+  </defs>
+
+  <!-- R1-R6 rule badges (bottom corners) -->
+  <g>
+    <rect x="40"  y="255" width="48" height="20" rx="4" fill="#161b22" stroke="#30363d"/>
+    <text class="lbl" x="64"  y="269" text-anchor="middle" fill="#7ee787">R1–R6</text>
+
+    <rect x="1112" y="255" width="48" height="20" rx="4" fill="#161b22" stroke="#30363d"/>
+    <text class="lbl" x="1136" y="269" text-anchor="middle" fill="#58a6ff">11 tools</text>
+  </g>
+</svg>

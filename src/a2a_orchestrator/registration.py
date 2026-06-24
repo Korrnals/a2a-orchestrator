@@ -27,6 +27,15 @@ from .validation import validate_agent_card
 
 CHALLENGE_TTL_SECONDS = 300  # 5 minutes
 MAX_PENDING_CHALLENGES = 100  # M4 fix: cap total pending challenges.
+# L3 fix: minimum interval (seconds) between challenges for the same
+# agent_id. Prevents a single agent from flooding the challenge endpoint.
+CHALLENGE_RATE_LIMIT_SECONDS = 5
+# L3 fix: maximum challenges an agent may create within the rate-limit
+# window before being throttled. Set to 2 to allow one legitimate
+# overwrite (e.g. the agent lost the first nonce) while blocking
+# rapid-fire flooding. The 3rd+ challenge within
+# CHALLENGE_RATE_LIMIT_SECONDS is rejected.
+MAX_CHALLENGES_PER_AGENT = 2
 
 
 @dataclass
@@ -77,6 +86,11 @@ class RegistrationService:
         self._registry = registry
         self._key_store = key_store
         self._challenges: dict[str, Challenge] = {}
+        # L3 fix: per-agent creation counter for rate limiting. Tracks
+        # how many challenges an agent has created within the current
+        # rate-limit window so we can block flooding while still allowing
+        # a single legitimate overwrite.
+        self._challenge_creation_count: dict[str, int] = {}
         self._lock = threading.Lock()
 
     def create_challenge(self, agent_id: str) -> str:
@@ -89,6 +103,12 @@ class RegistrationService:
         challenges (across all agent_ids) and the total pending count is
         capped at :data:`MAX_PENDING_CHALLENGES` to prevent unbounded
         memory growth from unique agent_ids.
+
+        L3 fix: per-agent rate limiting — if a challenge for the same
+        ``agent_id`` was created less than
+        :data:`CHALLENGE_RATE_LIMIT_SECONDS` ago, the call is rejected
+        with a ``RuntimeError``. This prevents a single agent from
+        flooding the challenge endpoint.
         """
         nonce = f"challenge-{uuid4().hex[:24]}"
         now = time.time()
@@ -102,6 +122,31 @@ class RegistrationService:
             # M4 fix: global cleanup — remove ALL expired challenges,
             # not just for this agent_id.
             self._cleanup_all_expired()
+            # L3 fix: per-agent rate limiting. If a non-expired challenge
+            # for this agent_id was created less than
+            # CHALLENGE_RATE_LIMIT_SECONDS ago, reject the request to
+            # prevent flooding. We allow the FIRST overwrite (replacing
+            # a stale challenge) but block rapid-fire creation beyond
+            # that. The ``_challenge_creation_count`` tracks how many
+            # times this agent has created a challenge within the current
+            # window; the first replacement is free, subsequent ones
+            # within the window are rate-limited.
+            existing = self._challenges.get(agent_id)
+            if existing is not None and not existing.is_expired(now):
+                elapsed = now - existing.created_at
+                count = self._challenge_creation_count.get(agent_id, 1)
+                if count >= MAX_CHALLENGES_PER_AGENT and elapsed < CHALLENGE_RATE_LIMIT_SECONDS:
+                    raise RuntimeError(
+                        f"Rate limit: {count} challenges for agent "
+                        f"{agent_id!r} created; minimum interval is "
+                        f"{CHALLENGE_RATE_LIMIT_SECONDS}s. Wait or "
+                        f"complete the pending challenge."
+                    )
+                # Overwrite: increment the counter for this agent.
+                self._challenge_creation_count[agent_id] = count + 1
+            else:
+                # Fresh challenge (no existing or expired) — reset counter.
+                self._challenge_creation_count[agent_id] = 1
             # M4 fix: cap total pending challenges. If at the limit,
             # reject new challenges to prevent unbounded memory growth.
             if len(self._challenges) >= MAX_PENDING_CHALLENGES:
@@ -143,13 +188,32 @@ class RegistrationService:
         H4 fix: the entire register flow (steps 3-6) holds ``self._lock``
         so the registry and key store mutations are atomic with respect
         to concurrent register/unregister calls.
+
+        M3 fix: the challenge is consumed (popped) IMMEDIATELY after the
+        signature is verified, BEFORE card validation and duplicate
+        check. This closes the replay window: if card validation or the
+        duplicate check fails, the challenge is already gone and cannot
+        be reused in a subsequent attempt.
         """
         agent_id = request.agent_card.get("id", "")
 
         # 1. Verify the challenge signature.
+        # M3 fix: consume the challenge immediately after a successful
+        # signature verification, before any other step. This prevents
+        # a replay where a failed registration (bad card, duplicate id)
+        # leaves the challenge alive for another attempt.
         if not self.verify_registration(request):
             return {"ok": False, "reason": "challenge verification failed "
                     "(invalid signature or expired challenge)"}
+
+        # Consume the challenge NOW — the signature was valid, so the
+        # nonce has served its purpose. Even if steps 2-6 fail, the
+        # challenge must not be reusable.
+        with self._lock:
+            self._challenges.pop(agent_id, None)
+            # L3 fix: reset the creation counter when the challenge is
+            # consumed so a subsequent registration attempt starts fresh.
+            self._challenge_creation_count.pop(agent_id, None)
 
         # 2. Validate the Agent Card against the schema.
         try:
@@ -157,7 +221,7 @@ class RegistrationService:
         except Exception as exc:
             return {"ok": False, "reason": f"agent card validation failed: {exc}"}
 
-        # 3-6. Check for duplicate, add card, add key, consume challenge.
+        # 3-6. Check for duplicate, add card, add key.
         # H4 fix: hold self._lock for the entire mutation sequence so
         # registry.add_card and key_store.add_key are atomic.
         with self._lock:
@@ -170,9 +234,6 @@ class RegistrationService:
 
             # 5. Add the public key to the KeyStore.
             self._key_store.add_key(agent_id, request.public_key)
-
-            # 6. Consume the challenge.
-            self._challenges.pop(agent_id, None)
 
         return {"ok": True, "agent_id": agent_id, "reason": "registered successfully"}
 
@@ -195,6 +256,8 @@ class RegistrationService:
         """Remove ALL expired challenges across all agent_ids (call under lock).
 
         M4 fix: global cleanup pass to prevent unbounded memory growth.
+        L3 fix: also resets the per-agent creation counter for expired
+        challenges so the rate-limit window starts fresh.
         """
         now = time.time()
         expired_ids = [
@@ -203,8 +266,10 @@ class RegistrationService:
         ]
         for aid in expired_ids:
             self._challenges.pop(aid, None)
+            self._challenge_creation_count.pop(aid, None)
 
     def clear(self) -> None:
         """Drop all pending challenges — used by tests."""
         with self._lock:
             self._challenges.clear()
+            self._challenge_creation_count.clear()

@@ -10,6 +10,7 @@ operate on the default tenant.
 """
 from __future__ import annotations
 
+import re
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +24,31 @@ from .session import SessionStore
 from .signing import KeyStore
 
 DEFAULT_TENANT = "default"
+
+# H1 fix: tenant_id is used in filesystem path joins (cards directory).
+# Without validation, a malicious tenant_id like "../../etc" could escape
+# the cards root and read arbitrary directories. This regex enforces a
+# safe, flat namespace: lowercase letter, then lowercase letters/digits/hyphens.
+# No path separators, no dots, no parent traversal possible.
+_TENANT_ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+
+
+def _validate_tenant_id(tenant_id: str) -> None:
+    """Validate ``tenant_id`` against the safe-namespace regex.
+
+    Raises ``ValueError`` if the id contains characters that could be
+    used for path traversal or namespace injection. This is called
+    before any path operation that incorporates ``tenant_id``.
+
+    The default tenant (``"default"``) always passes — it is a literal
+    constant, not user input, but we validate it anyway for uniformity.
+    """
+    if not isinstance(tenant_id, str) or not _TENANT_ID_RE.match(tenant_id):
+        raise ValueError(
+            f"Invalid tenant_id {tenant_id!r}: must match "
+            f"{_TENANT_ID_RE.pattern} (lowercase letters, digits, hyphens; "
+            f"no path separators or dots)."
+        )
 
 
 @dataclass
@@ -96,6 +122,11 @@ class TenantManager:
                 omitted, uses ``default_cards_dir`` for the default
                 tenant and ``default_cards_dir / tenant_id`` for others.
         """
+        # H1 fix: validate tenant_id BEFORE any path join to prevent
+        # path traversal (e.g. tenant_id="../../etc" reading arbitrary
+        # directories). This runs under the lock so validation and
+        # context creation are atomic.
+        _validate_tenant_id(tenant_id)
         with self._lock:
             ctx = self._tenants.get(tenant_id)
             if ctx is not None:

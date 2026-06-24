@@ -3,13 +3,8 @@ from __future__ import annotations
 
 import time
 
-import pytest
-from a2a_orchestrator.registration import (
-    RegistrationRequest,
-    RegistrationService,
-)
-from a2a_orchestrator.registry import AgentCardRegistry
-from a2a_orchestrator.signing import KeyStore, generate_keypair, sign_message
+from a2a_orchestrator.registration import RegistrationRequest
+from a2a_orchestrator.signing import generate_keypair, sign_message
 
 
 def _make_card(agent_id: str, accepts_from: list[str] | None = None) -> dict:
@@ -27,13 +22,8 @@ def _make_card(agent_id: str, accepts_from: list[str] | None = None) -> dict:
     }
 
 
-@pytest.fixture()
-def reg_service(cards_dir):
-    """Create a RegistrationService with a loaded registry."""
-    reg = AgentCardRegistry(cards_dir=cards_dir)
-    reg.load()
-    store = KeyStore()
-    return RegistrationService(registry=reg, key_store=store)
+# Note: reg_service fixture is now defined in conftest.py (shared with
+# test_security_fixes.py).
 
 
 class TestCreateChallenge:

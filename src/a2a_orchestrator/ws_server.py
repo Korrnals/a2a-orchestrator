@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 from typing import Any
 
 log = logging.getLogger("a2a_orchestrator.ws")
@@ -113,26 +114,43 @@ class WebSocketServer:
         """Return the bind host (H1 fix: default 127.0.0.1)."""
         return self._bind_host
 
-    async def add_subscriber(self, session_id: str, ws: Any) -> None:
-        """Register a WebSocket connection for ``session_id`` events."""
-        self._subscribers.setdefault(session_id, set()).add(ws)
-        log.debug("WS subscriber added for session %s (total: %d)",
-                  session_id, len(self._subscribers[session_id]))
+    async def add_subscriber(self, session_id: str, ws: Any,
+                             tenant_id: str = "") -> None:
+        """Register a WebSocket connection for ``session_id`` events.
 
-    async def remove_subscriber(self, session_id: str, ws: Any) -> None:
-        """Unregister a WebSocket connection."""
-        subs = self._subscribers.get(session_id)
+        M1 fix: ``tenant_id`` is incorporated into the subscription key
+        so that two tenants using the same ``session_id`` do not receive
+        each other's events. The composite key is
+        ``f"{tenant_id}:{session_id}"``.
+        """
+        key = self._composite_key(tenant_id, session_id)
+        self._subscribers.setdefault(key, set()).add(ws)
+        log.debug("WS subscriber added for %s (total: %d)",
+                  key, len(self._subscribers[key]))
+
+    async def remove_subscriber(self, session_id: str, ws: Any,
+                                tenant_id: str = "") -> None:
+        """Unregister a WebSocket connection.
+
+        M1 fix: uses the same composite key as :meth:`add_subscriber`.
+        """
+        key = self._composite_key(tenant_id, session_id)
+        subs = self._subscribers.get(key)
         if subs:
             subs.discard(ws)
             if not subs:
-                self._subscribers.pop(session_id, None)
+                self._subscribers.pop(key, None)
 
-    async def broadcast(self, session_id: str, event: dict[str, Any]) -> int:
+    async def broadcast(self, session_id: str, event: dict[str, Any],
+                        tenant_id: str = "") -> int:
         """Send an event to all subscribers of ``session_id``.
 
-        Returns the number of clients that received the event.
+        M1 fix: ``tenant_id`` scopes the broadcast so events only reach
+        subscribers in the same tenant. Returns the number of clients
+        that received the event.
         """
-        subs = set(self._subscribers.get(session_id, set()))
+        key = self._composite_key(tenant_id, session_id)
+        subs = set(self._subscribers.get(key, set()))
         if not subs:
             return 0
         message = json.dumps(event, ensure_ascii=False, sort_keys=True)
@@ -142,31 +160,46 @@ class WebSocketServer:
                 await ws.send(message)
                 delivered += 1
             except Exception:
-                log.debug("WS send failed for a subscriber of %s", session_id)
-                await self.remove_subscriber(session_id, ws)
+                log.debug("WS send failed for a subscriber of %s", key)
+                await self.remove_subscriber(session_id, ws, tenant_id)
         return delivered
 
-    def broadcast_sync(self, session_id: str, event: dict[str, Any]) -> int:
+    def broadcast_sync(self, session_id: str, event: dict[str, Any],
+                       tenant_id: str = "") -> int:
         """Thread-safe broadcast from a sync context.
 
         Schedules :meth:`broadcast` on the event loop. Returns 0 if no
         loop is running (the event is silently dropped).
+
+        M1 fix: forwards ``tenant_id`` to :meth:`broadcast`.
         """
         if self._loop is None or not self._loop.is_running():
             return 0
         future = asyncio.run_coroutine_threadsafe(
-            self.broadcast(session_id, event), self._loop,
+            self.broadcast(session_id, event, tenant_id), self._loop,
         )
         try:
             return future.result(timeout=self._broadcast_timeout)
         except TimeoutError:
             # L4 fix: log a warning when the broadcast times out so
             # operators can detect slow/stuck subscribers.
-            log.warning("WS broadcast to session %s timed out after %.1fs",
-                        session_id, self._broadcast_timeout)
+            log.warning("WS broadcast to %s timed out after %.1fs",
+                        self._composite_key(tenant_id, session_id),
+                        self._broadcast_timeout)
             return 0
         except Exception:
             return 0
+
+    @staticmethod
+    def _composite_key(tenant_id: str, session_id: str) -> str:
+        """Build the tenant-scoped subscription key.
+
+        M1 fix: composite key ``f"{tenant_id}:{session_id}"`` ensures
+        tenant isolation in the subscriber map. An empty ``tenant_id``
+        preserves backward compatibility (legacy callers that did not
+        pass a tenant).
+        """
+        return f"{tenant_id}:{session_id}" if tenant_id else session_id
 
     async def _handler(self, ws: Any) -> None:
         """Handle a single WebSocket connection.
@@ -181,6 +214,8 @@ class WebSocketServer:
         # L3 fix: initialise session_id before the try block so the
         # finally clause can safely check it without a locals() lookup.
         session_id = ""
+        # M1 fix: track tenant_id for composite-key subscription cleanup.
+        tenant_id = ""
         try:
             # Wait for the subscription message.
             raw = await ws.recv()
@@ -191,7 +226,9 @@ class WebSocketServer:
             # H1 fix: auth token check (if configured).
             if self._auth_token is not None:
                 provided_token = data.get("auth_token", "")
-                if provided_token != self._auth_token:
+                # H3 fix: constant-time comparison to prevent timing
+                # attacks on the WebSocket auth token.
+                if not secrets.compare_digest(provided_token, self._auth_token):
                     await ws.send(json.dumps({
                         "ok": False, "reason": "invalid or missing auth_token",
                     }))
@@ -200,9 +237,14 @@ class WebSocketServer:
             if not session_id:
                 await ws.send(json.dumps({"ok": False, "reason": "session_id required"}))
                 return
-            await self.add_subscriber(session_id, ws)
+            # M1 fix: extract tenant_id from the subscribe message so
+            # subscriptions are scoped per-tenant. Default to empty
+            # string for backward compatibility with legacy clients.
+            tenant_id = data.get("tenant_id", "")
+            await self.add_subscriber(session_id, ws, tenant_id)
             await ws.send(json.dumps({"ok": True, "reason": "subscribed",
-                                       "session_id": session_id}))
+                                       "session_id": session_id,
+                                       "tenant_id": tenant_id}))
             # Keep the connection open; events are pushed via broadcast.
             # We just wait until the client disconnects.
             async for _ in ws:
@@ -212,8 +254,9 @@ class WebSocketServer:
         finally:
             # L3 fix: clean up subscription on disconnect using the
             # pre-initialised session_id variable (no locals() lookup).
+            # M1 fix: pass tenant_id so the composite key matches.
             if session_id:
-                await self.remove_subscriber(session_id, ws)
+                await self.remove_subscriber(session_id, ws, tenant_id)
 
     async def start_async(self) -> None:
         """Start the WebSocket server (async context).
@@ -251,10 +294,17 @@ class WebSocketServer:
             self._server.close()
             self._server = None
 
-    def subscriber_count(self, session_id: str = "") -> int:
-        """Return the number of subscribers for a session (or total)."""
+    def subscriber_count(self, session_id: str = "",
+                        tenant_id: str = "") -> int:
+        """Return the number of subscribers for a session (or total).
+
+        M1 fix: accepts ``tenant_id`` to scope the count to a specific
+        tenant's subscribers. If ``session_id`` is empty, returns the
+        total across all sessions/tenants.
+        """
         if session_id:
-            return len(self._subscribers.get(session_id, set()))
+            key = self._composite_key(tenant_id, session_id)
+            return len(self._subscribers.get(key, set()))
         return sum(len(s) for s in self._subscribers.values())
 
 
@@ -273,14 +323,19 @@ def set_ws_server(server: WebSocketServer | None) -> None:
     _ws_server = server
 
 
-def broadcast_event(session_id: str, event_type: str, data: dict[str, Any]) -> int:
+def broadcast_event(session_id: str, event_type: str, data: dict[str, Any],
+                    tenant_id: str = "") -> int:
     """Broadcast an event to subscribers of ``session_id``.
 
     Returns the number of clients that received the event. If no WS
     server is running, returns 0 silently (graceful degradation).
+
+    M1 fix: ``tenant_id`` scopes the broadcast so events only reach
+    subscribers in the same tenant. Callers should pass the tenant_id
+    of the session that generated the event.
     """
     server = _ws_server
     if server is None:
         return 0
     event = {"type": event_type, "session_id": session_id, "data": data}
-    return server.broadcast_sync(session_id, event)
+    return server.broadcast_sync(session_id, event, tenant_id)
