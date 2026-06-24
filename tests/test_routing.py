@@ -80,7 +80,7 @@ class TestR3Depth:
         chain = ["agent-a", "agent-b", "agent-c"]
         session = SessionState(session_id="s1", chain=chain)
         assert session.depth() == MAX_CHAIN_DEPTH
-        rej = check_depth("agent-a", session, registry)
+        rej = check_depth("agent-a", "agent-b", session, registry)
         assert rej is not None
         assert rej.code == R3_CHAIN_TOO_DEEP
 
@@ -88,14 +88,14 @@ class TestR3Depth:
         # agent-shallow has max_chain_depth=1; depth 1 >= 1 → reject
         session = SessionState(session_id="s1", chain=["agent-shallow"])
         assert session.depth() == 1
-        rej = check_depth("agent-shallow", session, registry)
+        rej = check_depth("agent-shallow", "agent-a", session, registry)
         assert rej is not None
         assert rej.code == R3_CHAIN_TOO_DEEP
 
     def test_normal_depth_passes(self, registry):
         session = SessionState(session_id="s1", chain=["agent-a"])
         assert session.depth() == 1
-        rej = check_depth("agent-a", session, registry)
+        rej = check_depth("agent-a", "agent-b", session, registry)
         assert rej is None
 
 

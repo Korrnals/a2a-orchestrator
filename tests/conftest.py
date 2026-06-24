@@ -34,8 +34,10 @@ AGENT_CARD_SCHEMA: dict[str, Any] = {
         "version": {"type": "string",
                     "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-z0-9.-]+)?$"},
         "plugin": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        # L4 fix: pattern must match the embedded schema (allows directory
+        # prefix, e.g. "gcw-it-team/senior-dba.agent.md").
         "agent_file": {"type": "string",
-                       "pattern": "^[a-z][a-z0-9-]*\\.agent\\.md$"},
+                       "pattern": r"^([a-z][a-z0-9-]*/)*[a-z][a-z0-9-]*\.agent\.md$"},
         "description": {"type": "string"},
         "model_tier": {"type": "string"},
         "tool_profile": {"type": "string"},

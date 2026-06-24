@@ -93,6 +93,7 @@ def check_loop(
 
 def check_depth(
     from_id: str,
+    to_id: str,
     session: SessionState,
     registry: AgentCardRegistry,
 ) -> Rejection | None:
@@ -100,14 +101,17 @@ def check_depth(
 
     The "next hop" depth is ``session.depth()``: depth 0 for the first
     message, 1 for the second, etc. We compare against the *minimum* of
-    the protocol-wide ceiling and the target's per-card override (a
-    card may set ``max_chain_depth=1`` to forbid being deep).
+    the protocol-wide ceiling and the per-card overrides of both the
+    sender and the target.
+
+    M2 fix: previously this only checked the sender's ``max_chain_depth``.
+    Now it also checks the target's — if the target declares
+    ``max_chain_depth=1``, it should reject being at depth 2+.
     """
     next_depth = session.depth()
     # Per-protocol the cap is applied to the *receiver*, but the receiver
     # is not yet known to ``session`` — we use the protocol-wide cap for
-    # the global check, then in :func:`check_all` we apply the per-card
-    # cap of the *target* before persisting.
+    # the global check, then we apply the per-card caps below.
     if next_depth >= MAX_CHAIN_DEPTH:
         return Rejection(
             R3_CHAIN_TOO_DEEP,
@@ -126,6 +130,17 @@ def check_depth(
             R3_CHAIN_TOO_DEEP,
             (
                 f"Sender {from_id!r} declared max_chain_depth={sender_cap}; "
+                f"current depth {next_depth} would exceed it."
+            ),
+        )
+    # M2 fix: also check the target's per-card override. If the target
+    # declares ``max_chain_depth=1``, it should reject being at depth 1+.
+    target_cap = registry.max_chain_depth(to_id)
+    if next_depth >= target_cap:
+        return Rejection(
+            R3_CHAIN_TOO_DEEP,
+            (
+                f"Target {to_id!r} declared max_chain_depth={target_cap}; "
                 f"current depth {next_depth} would exceed it."
             ),
         )
@@ -266,7 +281,7 @@ def check_all(
     for gate in (
         lambda: check_whitelist(from_id, to_id, registry),
         lambda: check_loop(to_id, session),
-        lambda: check_depth(from_id, session, registry),
+        lambda: check_depth(from_id, to_id, session, registry),
         lambda: check_budget(session),
     ):
         rejection = gate()

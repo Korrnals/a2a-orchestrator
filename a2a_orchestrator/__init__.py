@@ -41,4 +41,9 @@ __all__ = [
 ]
 
 # Wire-format version pinned to a2a-message.schema.json. Bump on breaking change.
+# NOTE: This is the *schema* (wire-format) version, NOT the package version.
+# The package version (in pyproject.toml) tracks features, tooling, and
+# bug fixes; the schema version only bumps on breaking wire-format changes.
+# They are intentionally independent — a package release (e.g. 0.8.0)
+# may ship without any schema change, keeping the wire format at 0.7.0.
 A2A_SCHEMA_VERSION = "0.7.0"

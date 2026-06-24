@@ -174,7 +174,7 @@ class TestRejectR3Depth:
 
         session = SessionState(session_id="conv-e2e-r3b",
                                 chain=["agent-shallow"], budget_used=1)
-        rej = check_depth("agent-shallow", session, server_module.registry)
+        rej = check_depth("agent-shallow", "agent-a", session, server_module.registry)
         assert rej is not None
         assert rej.code == "R3_CHAIN_TOO_DEEP"
 

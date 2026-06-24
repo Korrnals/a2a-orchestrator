@@ -27,7 +27,9 @@ from typing import Protocol
 # message ("The agent wanted to do X. Approve?") instead of a generic
 # "routing failed" notice.
 R5_DESTRUCTIVE_DENIED = "R5_DESTRUCTIVE_DENIED"
-R5_DESTRUCTIVE_PENDING = "R5_DESTRUCTIVE_PENDING"
+# R5_DESTRUCTIVE_PENDING was removed (L2 fix): it was dead code, never
+# referenced anywhere. If a future async consent flow needs a "pending"
+# state, re-introduce it with a clear usage site.
 
 # Intent value defined in schemas/a2a-message.schema.json.
 DESTRUCTIVE_INTENT = "destructive-action-request"

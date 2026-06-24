@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-24
+
+### Added
+- `create_saga` MCP tool — create sagas for long-lived dialog state (was internal only)
+- 11 new tests for loop detection, registration race, target depth cap, metrics codes
+
+### Fixed
+- Schema: allow directory prefix in `agent_file` pattern (e.g. `agents/foo.agent.md`)
+- M1: `_registration_services` cache race condition — added thread-safe double-checked locking
+- M2: `check_depth` now enforces target's `max_chain_depth`, not just sender's
+- M3: Missing rejection codes (`R6_SIGNATURE_INVALID`, `SAGA_NOT_FOUND`, `SAGA_BUDGET_EXHAUSTED`) in metrics initial dict
+- L1: Documented that `A2A_SCHEMA_VERSION` (0.7.0) ≠ package version (intentional)
+- L2: Removed dead code `R5_DESTRUCTIVE_PENDING` constant
+- L3: `load_context` turn_id fallback no longer returns wrong message — returns `{ok: False}` instead
+- L4: `conftest.py` agent_file pattern aligned with embedded schema (directory prefix)
+
+### Changed
+- 241 tests (was 230), ruff clean, mypy clean (20 files)
+- Code review: 0 critical, 0 high, 3 medium, 4 low — all fixed
+
+
+
 ### Added
 - Project renamed from `gcw-orchestrator` to `a2a-orchestrator`
 - MIT License

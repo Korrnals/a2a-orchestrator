@@ -36,6 +36,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from typing import Any
 from uuid import uuid4
 
@@ -116,7 +117,10 @@ def _resolve_tenant(tenant_id: str) -> TenantContext:
 
 # Per-tenant RegistrationService cache (M2 fix). Each tenant gets its
 # own RegistrationService bound to that tenant's registry + key store.
+# M1 fix: guarded by a lock to prevent a race where two concurrent
+# first-access calls for the same tenant create two separate services.
 _registration_services: dict[str, RegistrationService] = {}
+_registration_services_lock = threading.Lock()
 
 
 def _resolve_registration_service(tenant_id: str) -> RegistrationService:
@@ -125,17 +129,27 @@ def _resolve_registration_service(tenant_id: str) -> RegistrationService:
     Each tenant gets its own RegistrationService bound to that tenant's
     registry + key store so externally-registered agents are isolated
     per tenant.
+
+    Thread-safe: uses a lock to prevent a race where two concurrent
+    first-access calls for the same tenant create two separate
+    RegistrationService instances (M1 fix).
     """
     if tenant_id == DEFAULT_TENANT:
         return registration_service
+    # Fast path: check without locking (common case — already created).
     svc = _registration_services.get(tenant_id)
-    if svc is None:
-        ctx = _resolve_tenant(tenant_id)
-        svc = RegistrationService(
-            registry=ctx.registry,
-            key_store=ctx.key_store,
-        )
-        _registration_services[tenant_id] = svc
+    if svc is not None:
+        return svc
+    # Slow path: lock, double-check, create.
+    with _registration_services_lock:
+        svc = _registration_services.get(tenant_id)
+        if svc is None:
+            ctx = _resolve_tenant(tenant_id)
+            svc = RegistrationService(
+                registry=ctx.registry,
+                key_store=ctx.key_store,
+            )
+            _registration_services[tenant_id] = svc
     return svc
 
 
@@ -599,19 +613,12 @@ def load_context(
                 "reason": f"loaded from JSONL fallback by message_id {message_id}",
             }
 
-    # If only session_id + turn_id given and Mnemos failed, try JSONL
-    # by scanning recent messages for the session.
-    if turn_id and not message_id:
-        recent = t_message_store.load_recent(session_id, n=50)
-        for msg in reversed(recent):
-            # We don't have turn_id in the JSONL store, but we can
-            # return the most recent message for the session.
-            if msg.get("outcome") == "delivered":
-                return {
-                    "ok": True,
-                    "message": msg,
-                    "reason": f"loaded from JSONL fallback (most recent for session {session_id})",
-                }
+    # L3 fix: if only session_id + turn_id given and Mnemos failed, we
+    # cannot match by turn_id in the JSONL store (it doesn't store
+    # turn_id). Previously this returned the most recent delivered
+    # message, which was wrong — it could return an unrelated message.
+    # Now we return {ok: False} so the caller knows the message was not
+    # found, rather than getting a false positive.
 
     return {
         "ok": False,

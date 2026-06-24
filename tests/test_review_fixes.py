@@ -1,4 +1,4 @@
-"""Tests for code review fixes (C1, C2, H1, H2, L5).
+"""Tests for code review fixes (C1, C2, H1, H2, L5, M1-M3, loop detection).
 
 Each test maps to a specific finding from the code review:
 
@@ -10,10 +10,16 @@ Each test maps to a specific finding from the code review:
   InvalidSignature and ValueError are caught).
 * **L5** — canonical_json with non-ASCII content produces stable
   signatures.
+* **Loop detection** — smoke test scenario: R2 fires with valid reason.
+* **M1** — _registration_services cache race (thread safety).
+* **M2** — check_depth enforces target's max_chain_depth.
+* **M3** — all rejection codes present in metrics initial dict.
 """
 from __future__ import annotations
 
 import json
+import threading
+from unittest.mock import patch
 
 import pytest
 
@@ -418,3 +424,335 @@ class TestL5CanonicalJsonNonAscii:
         # ensure_ascii=False means the character is raw UTF-8, not escaped.
         assert "héllo" in result
         assert "\\u" not in result
+
+
+# --------------------------------------------------------------------------- #
+# Loop detection — exact smoke test scenario (CRITICAL BUG fix)
+# --------------------------------------------------------------------------- #
+
+class TestLoopDetectionSmokeScenario:
+    """Reproduce the smoke test that failed due to a too-short reason.
+
+    The original smoke test used ``reason='Loop test'`` (9 chars), which
+    failed schema validation (minLength=10) before R2 could fire. With a
+    valid reason (≥10 chars), R2 correctly detects the loop.
+
+    The code is correct: schema validation must precede routing checks.
+    The smoke test itself had a bug (too-short reason). These tests
+    document the correct behaviour.
+    """
+
+    @pytest.fixture()
+    def server_module(self, env_isolated, tmp_path, monkeypatch):
+        monkeypatch.setenv("A2A_FALLBACK_JSONL", str(tmp_path / "loop.jsonl"))
+        import importlib
+
+        import a2a_orchestrator.config as config_mod
+        importlib.reload(config_mod)
+        import a2a_orchestrator.server as srv
+        importlib.reload(srv)
+        srv.registry.load()
+        srv.session_store.clear()
+        srv.message_store = srv.MessageStore(path=tmp_path / "loop.jsonl")
+        srv._default_ctx.message_store = srv.message_store
+        srv.metrics.reset()
+        return srv
+
+    def test_loop_detected_with_valid_reason(self, server_module):
+        """A→B→C→A: the third hop (C→A) is a loop because A is in chain.
+
+        The test fixture cards form a cycle: A accepts from C, B accepts
+        from A, C accepts from B. So A→B→C→A is the valid route, and the
+        third hop (C→A) triggers R2 because A is already upstream.
+        """
+        sid = "smoke-loop-001"
+
+        # 1. A→B: should deliver
+        r1 = server_module.send_a2a(
+            target="agent-b",
+            reason="Testing loop detection first hop.",
+            summary="Testing A2A routing for loop detection smoke test.",
+            from_id="agent-a",
+            session_id=sid,
+            intent="handoff",
+        )
+        assert r1["ok"] is True
+        assert r1["next_senior"] == "agent-b"
+
+        # 2. B→C: should deliver
+        r2 = server_module.send_a2a(
+            target="agent-c",
+            reason="Testing loop detection second hop.",
+            summary="Continuing the chain B to C for loop test.",
+            from_id="agent-b",
+            session_id=sid,
+            intent="handoff",
+        )
+        assert r2["ok"] is True
+
+        # 3. C→A (same chain): should be R2_LOOP_DETECTED (A is upstream)
+        r3 = server_module.send_a2a(
+            target="agent-a",
+            reason="Loop test with valid reason.",
+            summary="Should be rejected by R2 loop detection now.",
+            from_id="agent-c",
+            session_id=sid,
+            intent="handoff",
+        )
+        assert r3["ok"] is False
+        assert r3["code"] == "R2_LOOP_DETECTED"
+
+    def test_short_reason_fails_schema_not_r2(self, server_module):
+        """A reason < 10 chars fails schema validation, not R2.
+
+        This documents the original smoke test bug: the reason 'Loop test'
+        (9 chars) is too short for the schema (minLength=10), so the
+        message is rejected as SCHEMA_INVALID before R2 runs. This is
+        correct behaviour — schema validation must precede routing checks.
+
+        We use the A→B→C→A cycle: after two hops, C→A with a short reason
+        should fail schema validation, not R2.
+        """
+        sid = "smoke-schema-001"
+
+        # First two hops succeed
+        r1 = server_module.send_a2a(
+            target="agent-b",
+            reason="First hop for schema test.",
+            summary="Setting up chain for schema validation test.",
+            from_id="agent-a",
+            session_id=sid,
+        )
+        assert r1["ok"] is True
+
+        r2 = server_module.send_a2a(
+            target="agent-c",
+            reason="Second hop for schema test.",
+            summary="Continuing chain to set up loop scenario.",
+            from_id="agent-b",
+            session_id=sid,
+        )
+        assert r2["ok"] is True
+
+        # Third hop C→A with short reason → SCHEMA_INVALID, not R2
+        r3 = server_module.send_a2a(
+            target="agent-a",
+            reason="Loop test",  # 9 chars < 10 minLength
+            summary="Should be rejected by schema validation.",
+            from_id="agent-c",
+            session_id=sid,
+        )
+        assert r3["ok"] is False
+        assert r3["code"] == "SCHEMA_INVALID"
+
+
+# --------------------------------------------------------------------------- #
+# M1: _registration_services cache race (thread safety)
+# --------------------------------------------------------------------------- #
+
+class TestM1RegistrationServiceCacheRace:
+    """Verify that concurrent first-access for the same tenant doesn't race."""
+
+    @pytest.fixture()
+    def server_module(self, env_isolated, tmp_path, monkeypatch):
+        monkeypatch.setenv("A2A_FALLBACK_JSONL", str(tmp_path / "m1.jsonl"))
+        import importlib
+
+        import a2a_orchestrator.config as config_mod
+        importlib.reload(config_mod)
+        import a2a_orchestrator.server as srv
+        importlib.reload(srv)
+        srv.registry.load()
+        srv.session_store.clear()
+        srv.message_store = srv.MessageStore(path=tmp_path / "m1.jsonl")
+        srv._default_ctx.message_store = srv.message_store
+        srv.metrics.reset()
+        return srv
+
+    def test_concurrent_access_same_tenant_returns_same_instance(
+        self, server_module,
+    ):
+        """Multiple threads requesting the same tenant get the same service."""
+        tenant_id = "tenant-m1-race"
+        results: list[object] = []
+        results_lock = threading.Lock()
+        barrier = threading.Barrier(8)
+
+        def worker() -> None:
+            barrier.wait()  # Synchronise start to maximise race window
+            svc = server_module._resolve_registration_service(tenant_id)
+            with results_lock:
+                results.append(svc)
+
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(results) == 8
+        # All threads must get the exact same instance
+        first = results[0]
+        assert all(r is first for r in results)
+
+    def test_different_tenants_get_different_instances(self, server_module):
+        """Different tenants get different RegistrationService instances."""
+        svc_a = server_module._resolve_registration_service("tenant-a")
+        svc_b = server_module._resolve_registration_service("tenant-b")
+        assert svc_a is not svc_b
+
+    def test_default_tenant_returns_module_level_service(self, server_module):
+        """Default tenant returns the module-level registration_service."""
+        svc = server_module._resolve_registration_service("default")
+        assert svc is server_module.registration_service
+
+
+# --------------------------------------------------------------------------- #
+# M2: check_depth enforces target's max_chain_depth
+# --------------------------------------------------------------------------- #
+
+class TestM2TargetDepthCap:
+    """Verify that check_depth also checks the target's max_chain_depth."""
+
+    @pytest.fixture()
+    def registry(self, cards_dir):
+        from a2a_orchestrator.registry import AgentCardRegistry
+
+        reg = AgentCardRegistry(cards_dir=cards_dir)
+        reg.load()
+        return reg
+
+    def test_target_depth_cap_rejects(self, registry):
+        """Target with max_chain_depth=1 rejects being at depth 1+.
+
+        agent-shallow has max_chain_depth=1. If we try to route to it
+        at depth 1 (chain has 1 entry), the target cap should reject.
+        """
+        from a2a_orchestrator.routing import R3_CHAIN_TOO_DEEP, check_depth
+        from a2a_orchestrator.session import SessionState
+
+        session = SessionState(session_id="s1", chain=["agent-a"])
+        assert session.depth() == 1
+        rej = check_depth("agent-a", "agent-shallow", session, registry)
+        assert rej is not None
+        assert rej.code == R3_CHAIN_TOO_DEEP
+        assert "agent-shallow" in rej.message
+        assert "max_chain_depth=1" in rej.message
+
+    def test_sender_cap_still_works(self, registry):
+        """Sender's max_chain_depth is still enforced (regression check)."""
+        from a2a_orchestrator.routing import R3_CHAIN_TOO_DEEP, check_depth
+        from a2a_orchestrator.session import SessionState
+
+        # agent-shallow as sender at depth 1 → sender cap rejects
+        session = SessionState(session_id="s1", chain=["agent-shallow"])
+        rej = check_depth("agent-shallow", "agent-a", session, registry)
+        assert rej is not None
+        assert rej.code == R3_CHAIN_TOO_DEEP
+
+    def test_normal_route_passes_both_caps(self, registry):
+        """Neither sender nor target has a restrictive cap → passes."""
+        from a2a_orchestrator.routing import check_depth
+        from a2a_orchestrator.session import SessionState
+
+        session = SessionState(session_id="s1", chain=["agent-a"])
+        rej = check_depth("agent-a", "agent-b", session, registry)
+        assert rej is None
+
+
+# --------------------------------------------------------------------------- #
+# M3: all rejection codes in metrics initial dict
+# --------------------------------------------------------------------------- #
+
+class TestM3MetricsRejectionCodes:
+    """Verify that all rejection codes are present in the initial dict."""
+
+    def test_all_rejection_codes_in_initial_dict(self):
+        from a2a_orchestrator.metrics import Metrics
+
+        m = Metrics()
+        snapshot = m.snapshot()
+        by_rule = snapshot["rejections_by_rule"]
+
+        expected_codes = {
+            "R1_NOT_WHITELISTED",
+            "R2_LOOP_DETECTED",
+            "R3_CHAIN_TOO_DEEP",
+            "R4_BUDGET_EXHAUSTED",
+            "R5_DESTRUCTIVE_DENIED",
+            "R6_SIGNATURE_INVALID",
+            "SCHEMA_INVALID",
+            "SAGA_NOT_FOUND",
+            "SAGA_BUDGET_EXHAUSTED",
+        }
+        assert expected_codes.issubset(set(by_rule.keys()))
+        # All start at zero
+        assert all(v == 0 for v in by_rule.values())
+
+    def test_reset_clears_all_rejection_codes(self):
+        from a2a_orchestrator.metrics import Metrics
+
+        m = Metrics()
+        # Record some rejections
+        m.record_rejected("R2_LOOP_DETECTED")
+        m.record_rejected("SAGA_NOT_FOUND")
+        m.record_rejected("SAGA_BUDGET_EXHAUSTED")
+        m.record_rejected("R6_SIGNATURE_INVALID")
+        snap = m.snapshot()
+        assert snap["rejections_by_rule"]["R2_LOOP_DETECTED"] == 1
+        assert snap["rejections_by_rule"]["SAGA_NOT_FOUND"] == 1
+        assert snap["rejections_by_rule"]["SAGA_BUDGET_EXHAUSTED"] == 1
+        assert snap["rejections_by_rule"]["R6_SIGNATURE_INVALID"] == 1
+
+        # Reset → all back to zero
+        m.reset()
+        snap = m.snapshot()
+        by_rule = snap["rejections_by_rule"]
+        assert all(v == 0 for v in by_rule.values())
+        # The keys must still be present after reset
+        expected_codes = {
+            "R1_NOT_WHITELISTED",
+            "R2_LOOP_DETECTED",
+            "R3_CHAIN_TOO_DEEP",
+            "R4_BUDGET_EXHAUSTED",
+            "R5_DESTRUCTIVE_DENIED",
+            "R6_SIGNATURE_INVALID",
+            "SCHEMA_INVALID",
+            "SAGA_NOT_FOUND",
+            "SAGA_BUDGET_EXHAUSTED",
+        }
+        assert expected_codes.issubset(set(by_rule.keys()))
+
+    def test_saga_rejection_codes_tracked_in_metrics(
+        self, tmp_path, env_isolated, monkeypatch,
+    ):
+        """SAGA_NOT_FOUND is tracked in metrics after a send_a2a rejection."""
+        monkeypatch.setenv("A2A_FALLBACK_JSONL", str(tmp_path / "m3.jsonl"))
+        import importlib
+
+        import a2a_orchestrator.config as config_mod
+        importlib.reload(config_mod)
+        import a2a_orchestrator.server as srv
+        importlib.reload(srv)
+        srv.registry.load()
+        srv.session_store.clear()
+        srv.message_store = srv.MessageStore(path=tmp_path / "m3.jsonl")
+        srv._default_ctx.message_store = srv.message_store
+        srv.metrics.reset()
+
+        # SAGA_NOT_FOUND: send_a2a with a non-existent saga_id
+        with patch.object(srv.mnemos_client, "write_turn",
+                          return_value={"turn_id": "t1"}):
+            result = srv.send_a2a(
+                target="agent-b",
+                reason="Testing saga not found rejection.",
+                summary="This should be rejected because saga does not exist.",
+                from_id="agent-a",
+                session_id="conv-m3-saga",
+                saga_id="nonexistent-saga",
+            )
+        assert result["ok"] is False
+        assert result["code"] == "SAGA_NOT_FOUND"
+
+        snap = srv.metrics.snapshot()
+        assert snap["rejections_by_rule"]["SAGA_NOT_FOUND"] == 1
