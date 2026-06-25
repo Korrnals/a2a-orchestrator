@@ -1,72 +1,123 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="100%" role="img" aria-labelledby="banner-title banner-desc">
   <title id="banner-title">a2a-orchestrator</title>
-  <desc id="banner-desc">Agent-to-Agent Routing MCP Server — connected nodes A→B→C</desc>
+  <desc id="banner-desc">Agent-to-Agent Routing MCP Server — connected nodes A→B→C with routing checks R1–R6</desc>
 
-  <style>
-    .bg     { fill: #0d1117; }
-    .title  { font: 700 52px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #58a6ff; }
-    .sub    { font: 400 22px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #8b949e; }
-    .node   { font: 600 18px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #0d1117; }
-    .lbl    { font: 500 13px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #8b949e; }
-    .accent { stroke: #7ee787; }
-    .blue   { stroke: #58a6ff; }
-  </style>
-
-  <!-- Background -->
-  <rect class="bg" width="1200" height="300"/>
-
-  <!-- Subtle grid dots (decorative) -->
-  <g fill="#21262d" opacity="0.5">
-    <circle cx="60"   cy="60"  r="1.5"/>
-    <circle cx="120"  cy="60"  r="1.5"/>
-    <circle cx="60"   cy="120" r="1.5"/>
-    <circle cx="1140" cy="240" r="1.5"/>
-    <circle cx="1080" cy="240" r="1.5"/>
-    <circle cx="1140" cy="180" r="1.5"/>
-  </g>
-
-  <!-- Title block -->
-  <text class="title" x="600" y="110" text-anchor="middle">a2a-orchestrator</text>
-  <text class="sub"   x="600" y="145" text-anchor="middle">Agent-to-Agent Routing MCP Server</text>
-
-  <!-- Connected nodes: A → B → C chain -->
-  <g>
-    <!-- Connecting lines with arrowheads -->
-    <line x1="430" y1="225" x2="525" y2="225" class="blue"   stroke-width="2.5" marker-end="url(#arrow-blue)"/>
-    <line x1="675" y1="225" x2="770" y2="225" class="accent" stroke-width="2.5" marker-end="url(#arrow-green)"/>
-
-    <!-- Node A -->
-    <circle cx="400" cy="225" r="30" fill="#58a6ff" stroke="#1f6feb" stroke-width="2"/>
-    <text class="node" x="400" y="231" text-anchor="middle">A</text>
-    <text class="lbl"  x="400" y="275" text-anchor="middle">agent-tech-lead</text>
-
-    <!-- Node B -->
-    <circle cx="600" cy="225" r="30" fill="#7ee787" stroke="#2ea043" stroke-width="2"/>
-    <text class="node" x="600" y="231" text-anchor="middle">B</text>
-    <text class="lbl"  x="600" y="275" text-anchor="middle">agent-dba</text>
-
-    <!-- Node C -->
-    <circle cx="800" cy="225" r="30" fill="#58a6ff" stroke="#1f6feb" stroke-width="2"/>
-    <text class="node" x="800" y="231" text-anchor="middle">C</text>
-    <text class="lbl"  x="800" y="275" text-anchor="middle">agent-backend</text>
-  </g>
-
-  <!-- Arrow markers -->
   <defs>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <!-- Background gradient: deep navy → near-black -->
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0d1117"/>
+      <stop offset="50%"  stop-color="#0a0e1a"/>
+      <stop offset="100%"  stop-color="#010409"/>
+    </linearGradient>
+
+    <!-- Radial glow behind title -->
+    <radialGradient id="title-glow" cx="50%" cy="35%" r="40%">
+      <stop offset="0%"   stop-color="#1f6feb" stop-opacity="0.25"/>
+      <stop offset="100%"  stop-color="#1f6feb" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Node gradients -->
+    <radialGradient id="node-blue" cx="35%" cy="35%" r="70%">
+      <stop offset="0%"   stop-color="#79b8ff"/>
+      <stop offset="100%"  stop-color="#1f6feb"/>
+    </radialGradient>
+    <radialGradient id="node-green" cx="35%" cy="35%" r="70%">
+      <stop offset="0%"   stop-color="#a5f3a5"/>
+      <stop offset="100%"  stop-color="#2ea043"/>
+    </radialGradient>
+
+    <!-- Glow filters -->
+    <filter id="glow-blue" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Arrow markers -->
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#58a6ff"/>
     </marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#7ee787"/>
     </marker>
   </defs>
 
-  <!-- R1-R6 rule badges (bottom corners) -->
-  <g>
-    <rect x="40"  y="255" width="48" height="20" rx="4" fill="#161b22" stroke="#30363d"/>
-    <text class="lbl" x="64"  y="269" text-anchor="middle" fill="#7ee787">R1–R6</text>
+  <style>
+    .title  { font: 700 52px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #58a6ff; }
+    .sub    { font: 400 22px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #8b949e; }
+    .node   { font: 700 20px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #0d1117; }
+    .lbl    { font: 500 13px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #8b949e; }
+    .badge  { font: 600 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .rule   { font: 500 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #6e7681; }
+    @media (prefers-reduced-motion: reduce) {
+      .flow { animation: none !important; }
+    }
+    .flow {
+      stroke-dasharray: 8 6;
+      animation: dash 1.2s linear infinite;
+    }
+    @keyframes dash { to { stroke-dashoffset: -14; } }
+  </style>
 
-    <rect x="1112" y="255" width="48" height="20" rx="4" fill="#161b22" stroke="#30363d"/>
-    <text class="lbl" x="1136" y="269" text-anchor="middle" fill="#58a6ff">11 tools</text>
+  <!-- Background gradient -->
+  <rect width="1200" height="300" fill="url(#bg-grad)"/>
+
+  <!-- Radial glow behind title -->
+  <rect width="1200" height="300" fill="url(#title-glow)"/>
+
+  <!-- Decorative grid dots (denser, subtle) -->
+  <g fill="#21262d" opacity="0.4">
+    <circle cx="40"   cy="40"  r="1.5"/><circle cx="100"  cy="40"  r="1.5"/><circle cx="160"  cy="40"  r="1.5"/>
+    <circle cx="40"   cy="100" r="1.5"/><circle cx="100"  cy="100" r="1.5"/>
+    <circle cx="1040" cy="40"  r="1.5"/><circle cx="1100" cy="40"  r="1.5"/><circle cx="1160" cy="40"  r="1.5"/>
+    <circle cx="1100" cy="100" r="1.5"/><circle cx="1160" cy="100" r="1.5"/>
+    <circle cx="40"   cy="200" r="1.5"/><circle cx="100"  cy="200" r="1.5"/>
+    <circle cx="1100" cy="200" r="1.5"/><circle cx="1160" cy="200" r="1.5"/>
   </g>
+
+  <!-- Top & bottom accent lines -->
+  <rect x="0" y="0" width="1200" height="3" fill="#1f6feb" opacity="0.6"/>
+  <rect x="0" y="297" width="1200" height="3" fill="#1f6feb" opacity="0.3"/>
+
+  <!-- Title block -->
+  <text class="title" x="600" y="105" text-anchor="middle" filter="url(#glow-soft)">a2a-orchestrator</text>
+  <text class="sub"   x="600" y="140" text-anchor="middle">Agent-to-Agent Routing MCP Server</text>
+
+  <!-- Connecting lines with animated dash flow -->
+  <line x1="432" y1="220" x2="568" y2="220" stroke="#58a6ff" stroke-width="2.5" class="flow" marker-end="url(#arrow-blue)" opacity="0.85"/>
+  <line x1="632" y1="220" x2="768" y2="220" stroke="#7ee787" stroke-width="2.5" class="flow" marker-end="url(#arrow-green)" opacity="0.85"/>
+
+  <!-- Node A (blue, glowing) -->
+  <circle cx="400" cy="220" r="32" fill="url(#node-blue)" stroke="#1f6feb" stroke-width="2" filter="url(#glow-blue)"/>
+  <text class="node" x="400" y="227" text-anchor="middle">A</text>
+  <text class="lbl"  x="400" y="270" text-anchor="middle">agent-tech-lead</text>
+
+  <!-- Node B (green, glowing) -->
+  <circle cx="600" cy="220" r="32" fill="url(#node-green)" stroke="#2ea043" stroke-width="2" filter="url(#glow-green)"/>
+  <text class="node" x="600" y="227" text-anchor="middle">B</text>
+  <text class="lbl"  x="600" y="270" text-anchor="middle">agent-dba</text>
+
+  <!-- Node C (blue, glowing) -->
+  <circle cx="800" cy="220" r="32" fill="url(#node-blue)" stroke="#1f6feb" stroke-width="2" filter="url(#glow-blue)"/>
+  <text class="node" x="800" y="227" text-anchor="middle">C</text>
+  <text class="lbl"  x="800" y="270" text-anchor="middle">agent-backend</text>
+
+  <!-- R1–R6 rule badges (bottom-left) -->
+  <rect x="30"  y="262" width="54" height="22" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text class="badge" x="57"  y="277" text-anchor="middle" fill="#7ee787">R1–R6</text>
+
+  <!-- 11 tools badge (bottom-right) -->
+  <rect x="1116" y="262" width="54" height="22" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text class="badge" x="1143" y="277" text-anchor="middle" fill="#58a6ff">11 tools</text>
+
+  <!-- Small routing-rule labels along the chain -->
+  <text class="rule" x="500" y="210" text-anchor="middle">R1·R2·R3</text>
+  <text class="rule" x="700" y="210" text-anchor="middle">R4·R5·R6</text>
 </svg>
