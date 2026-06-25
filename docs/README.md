@@ -21,6 +21,7 @@ Agent-to-Agent routing with loop, budget, and signature controls.
 | [External Agents](en/external-agents.md) | Registration flow, challenge-response, Ed25519 |
 | [Search](en/search.md) | Search messages, TF scoring, fallback |
 | [Security](en/security.md) | Security model, threat model, hardening |
+| [Testing](en/testing.md) | E2e MCP protocol tests, unit test results |
 
 ## Русский
 
@@ -40,6 +41,7 @@ Agent-to-Agent routing with loop, budget, and signature controls.
 | [Внешние агенты](ru/external-agents.md) | Поток регистрации, challenge-response, Ed25519 |
 | [Поиск](ru/search.md) | Поиск сообщений, TF-скоринг, fallback |
 | [Безопасность](ru/security.md) | Модель безопасности, threat model, усиление |
+| [Тестирование](ru/testing.md) | E2e-тесты MCP-протокола, результаты unit-тестов |
 
 ## Project links
 

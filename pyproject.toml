@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "a2a-orchestrator"
-version = "1.0.0"
+version = "1.1.0"
 description = "Universal MCP server for A2A routing between agents. Performs R1-R6 routing checks, saga pattern, signed messages, multi-tenant, WebSocket streaming, vector search, web/HTTP wrapper, and external agent registration. Persists messages to Mnemos or JSONL fallback."
 readme = "README.md"
 requires-python = ">=3.11"
