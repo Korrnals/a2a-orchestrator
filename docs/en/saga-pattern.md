@@ -71,8 +71,8 @@ get_saga_status(saga_id="saga-1a2b3c4d5e6f")
 Or via CLI:
 
 ```bash
-a2a-orchestrator saga status saga-1a2b3c4d5e6f
-a2a-orchestrator saga list --status active
+a2a-cli saga status saga-1a2b3c4d5e6f
+a2a-cli saga list --status active
 ```
 
 ## Saga states

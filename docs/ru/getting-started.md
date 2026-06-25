@@ -10,14 +10,50 @@
 
 ## Установка
 
+### Одна команда (рекомендуется)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash
+```
+
+Скрипт установки:
+
+- Создаёт venv в `~/.a2a-orchestrator/venv`
+- Устанавливает пакет из GitHub
+- Создаёт лаунчер в `~/.local/bin/a2a-orchestrator`
+- Опционально регистрирует в VS Code `mcp.json` (запрашивает, если не `--mcp`)
+
+Параметры установки:
+
+```bash
+# Конкретная версия
+curl -fsSL .../install.sh | bash -s -- --version 1.0.0
+
+# Автонастройка MCP (без запроса)
+curl -fsSL .../install.sh | bash -s -- --mcp
+
+# Без venv (в системный Python)
+curl -fsSL .../install.sh | bash -s -- --no-venv
+```
+
+### Вручную (для разработки)
+
 ```bash
 git clone https://github.com/Korrnals/a2a-orchestrator.git
-cd a2a-orchestrator
+cd a2a-cli
 pip install -e .
 
 # Опционально: зависимости web-сервера (FastAPI + uvicorn)
 pip install -e ".[web]"
 ```
+
+## Удаление
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/uninstall.sh | bash
+```
+
+Удаляет venv, лаунчер и запись в `mcp.json`.
 
 ## Настройка
 
@@ -39,7 +75,7 @@ export MNEMOS_BASE_URL=http://127.0.0.1:8787
 ```json
 {
   "servers": {
-    "a2a-orchestrator": {
+    "a2a-cli": {
       "command": "python3",
       "args": ["-m", "a2a_orchestrator"],
       "env": {
@@ -83,12 +119,12 @@ load_context(session_id="conv-001", message_id="msg-a1b2c3d4e5f6")
 
 ```bash
 # Дымовой тест CLI — отправка + список
-a2a-orchestrator send --from agent-a --to agent-b \
+a2a-cli send --from agent-a --to agent-b \
   --reason "smoke test" --summary "hello" --session-id test-001
-a2a-orchestrator list --session-id test-001
+a2a-cli list --session-id test-001
 
 # Статус цепочки
-a2a-orchestrator status --session-id test-001
+a2a-cli status --session-id test-001
 ```
 
 ## Следующие шаги
@@ -96,3 +132,4 @@ a2a-orchestrator status --session-id test-001
 - [Справочник инструментов](tools-reference.md) — все 11 MCP-инструментов
 - [Правила маршрутизации](routing-rules.md) — R1–R6 с пояснениями
 - [Архитектура](architecture.md) — как части связаны между собой
+- [Тестирование](testing.md) — результаты e2e и unit-тестов

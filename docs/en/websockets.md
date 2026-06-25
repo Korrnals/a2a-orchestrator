@@ -27,13 +27,13 @@ state changes.
 
 ```bash
 # MCP + WebSocket
-a2a-orchestrator serve --ws
+a2a-cli serve --ws
 
 # MCP + WebSocket + Web server
-a2a-orchestrator serve --all
+a2a-cli serve --all
 
 # Monitor events for a session
-a2a-orchestrator ws-monitor --session-id conv-abc
+a2a-cli ws-monitor --session-id conv-abc
 ```
 
 ## Event payload

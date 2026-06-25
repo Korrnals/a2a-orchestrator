@@ -80,10 +80,10 @@ unregister_agent(agent_id="agent-external-1")
 
 ```bash
 # Шаг 1: получить challenge-nonce
-a2a-orchestrator register --agent-card card.json --public-key key.b64
+a2a-cli register --agent-card card.json --public-key key.b64
 
 # Шаг 2: подписать nonce и отправить
-a2a-orchestrator register --agent-card card.json --public-key key.b64 --signature <sig>
+a2a-cli register --agent-card card.json --public-key key.b64 --signature <sig>
 ```
 
 ## Регистрация по тенантам

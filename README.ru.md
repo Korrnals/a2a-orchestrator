@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 MD033 -->
 <p align="center">
-  <img src="docs/assets/a2a-banner.svg" alt="a2a-orchestrator" width="100%">
+  <img src="docs/assets/a2a-banner.svg" alt="a2a-cli" width="100%">
 </p>
 
 <h1 align="center">a2a-orchestrator</h1>
@@ -36,7 +36,7 @@
 
 В типичной мультиагентной схеме при делегировании от Агента А к Агенту Б
 пересылается весь транскрипт разговора — это стоит в **30–45×** больше
-токенов, чем структурированное сообщение. `a2a-orchestrator` заменяет
+токенов, чем структурированное сообщение. `a2a-cli` заменяет
 пересылку транскрипта структурированным сообщением о передаче и
 контролирует границы безопасности (белый список, защита от циклов,
 лимиты глубины и бюджета, проверка подписей, согласие на деструктивные
@@ -59,13 +59,56 @@
 
 ## Быстрый старт
 
+**Установка в одну команду** (создаёт venv, устанавливает из GitHub,
+опционально регистрирует в VS Code `mcp.json`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash
+```
+
+**Установка вручную** (для разработки):
+
 ```bash
 git clone https://github.com/Korrnals/a2a-orchestrator.git
-cd a2a-orchestrator
+cd a2a-cli
 pip install -e .
 # Добавьте в VS Code mcp.json — см. docs/ru/getting-started.md
 python3 -m a2a_orchestrator
 ```
+
+<details>
+<summary>Параметры установки</summary>
+
+```bash
+# Конкретная версия
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --version 1.0.0
+
+# Автоматическая настройка MCP (без запроса)
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --mcp
+
+# Без venv (в системный Python)
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --no-venv
+
+# Свой путь venv + uv
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --venv ~/.my-venv --uv
+```
+
+Скрипт установки:
+
+- Создаёт venv в `~/.a2a-orchestrator/venv`
+- Устанавливает пакет из GitHub
+- Создаёт лаунчер в `~/.local/bin/a2a-orchestrator`
+- Опционально регистрирует в VS Code `mcp.json`
+
+</details>
+
+## Удаление
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/uninstall.sh | bash
+```
+
+Удаляет venv, лаунчер и запись в `mcp.json`.
 
 ## Документация
 
@@ -77,6 +120,7 @@ python3 -m a2a_orchestrator
 - [Справочник CLI](docs/ru/cli-reference.md)
 - [REST API](docs/ru/rest-api.md)
 - [Безопасность](docs/ru/security.md)
+- [Тестирование](docs/ru/testing.md)
 
 Полный индекс документации: [docs/](docs/README.md)
 

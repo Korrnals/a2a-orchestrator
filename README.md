@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 MD033 -->
 <p align="center">
-  <img src="docs/assets/a2a-banner.svg" alt="a2a-orchestrator" width="100%">
+  <img src="docs/assets/a2a-banner.svg" alt="a2a-cli" width="100%">
 </p>
 
 <h1 align="center">a2a-orchestrator</h1>
@@ -36,7 +36,7 @@
 
 In a typical multi-agent setup, when Agent A delegates to Agent B it
 forwards the entire conversation transcript — costing **30–45×** the
-tokens of a structured message. `a2a-orchestrator` replaces transcript
+tokens of a structured message. `a2a-cli` replaces transcript
 forwarding with a structured handoff message and enforces security
 boundaries (whitelist, loop prevention, depth/budget caps, signature
 verification, destructive-action consent).
@@ -58,13 +58,56 @@ verification, destructive-action consent).
 
 ## Quick start
 
+**One-liner install** (creates a venv, installs from GitHub, optionally
+registers in VS Code `mcp.json`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash
+```
+
+**Manual install** (development checkout):
+
 ```bash
 git clone https://github.com/Korrnals/a2a-orchestrator.git
-cd a2a-orchestrator
+cd a2a-cli
 pip install -e .
 # Add to VS Code mcp.json — see docs/en/getting-started.md
 python3 -m a2a_orchestrator
 ```
+
+<details>
+<summary>Install options</summary>
+
+```bash
+# Specific version
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --version 1.0.0
+
+# Auto-setup MCP integration (no prompt)
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --mcp
+
+# No venv (install into system Python)
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --no-venv
+
+# Custom venv path + use uv
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash -s -- --venv ~/.my-venv --uv
+```
+
+The install script:
+
+- Creates a venv at `~/.a2a-orchestrator/venv`
+- Installs the package from GitHub
+- Creates a launcher in `~/.local/bin/a2a-orchestrator`
+- Optionally registers in VS Code `mcp.json`
+
+</details>
+
+## Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/uninstall.sh | bash
+```
+
+Removes the venv, the launcher, and the `mcp.json` entry.
 
 ## Documentation
 
@@ -76,9 +119,10 @@ python3 -m a2a_orchestrator
 - [CLI Reference](docs/en/cli-reference.md)
 - [REST API](docs/en/rest-api.md)
 - [Security](docs/en/security.md)
+- [Testing](docs/en/testing.md)
 
 Full documentation index: [docs/](docs/README.md)
 
 ## License
 
-[MIT](LICENSE) — © 2026 a2a-orchestrator contributors.
+[MIT](LICENSE) — © 2026 a2a-cli contributors.

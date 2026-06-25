@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to a2a-orchestrator are documented here.
+All notable changes to a2a-cli are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/),
 adheres to [Semantic Versioning](https://semver.org/).
 
@@ -56,7 +56,7 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 
 ### Added
-- Project renamed from `gcw-orchestrator` to `a2a-orchestrator`
+- Project renamed from `gcw-orchestrator` to `a2a-cli`
 - MIT License
 - `.gitignore`, `CONTRIBUTING.md`, `CHANGELOG.md`
 

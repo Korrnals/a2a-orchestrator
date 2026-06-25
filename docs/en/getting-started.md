@@ -10,14 +10,50 @@ Install, configure, and send your first A2A message in under 5 minutes.
 
 ## Install
 
+### One-liner (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash
+```
+
+The install script:
+
+- Creates a venv at `~/.a2a-orchestrator/venv`
+- Installs the package from GitHub
+- Creates a launcher in `~/.local/bin/a2a-orchestrator`
+- Optionally registers in VS Code `mcp.json` (prompts unless `--mcp`)
+
+Install options:
+
+```bash
+# Specific version
+curl -fsSL .../install.sh | bash -s -- --version 1.0.0
+
+# Auto-setup MCP (no prompt)
+curl -fsSL .../install.sh | bash -s -- --mcp
+
+# No venv (system Python)
+curl -fsSL .../install.sh | bash -s -- --no-venv
+```
+
+### Manual (development checkout)
+
 ```bash
 git clone https://github.com/Korrnals/a2a-orchestrator.git
-cd a2a-orchestrator
+cd a2a-cli
 pip install -e .
 
 # Optional: web server dependencies (FastAPI + uvicorn)
 pip install -e ".[web]"
 ```
+
+## Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/uninstall.sh | bash
+```
+
+Removes the venv, the launcher, and the `mcp.json` entry.
 
 ## Configure
 
@@ -39,7 +75,7 @@ Add the server to your `mcp.json`:
 ```json
 {
   "servers": {
-    "a2a-orchestrator": {
+    "a2a-cli": {
       "command": "python3",
       "args": ["-m", "a2a_orchestrator"],
       "env": {
@@ -83,12 +119,12 @@ load_context(session_id="conv-001", message_id="msg-a1b2c3d4e5f6")
 
 ```bash
 # CLI smoke test — send + list
-a2a-orchestrator send --from agent-a --to agent-b \
+a2a-cli send --from agent-a --to agent-b \
   --reason "smoke test" --summary "hello" --session-id test-001
-a2a-orchestrator list --session-id test-001
+a2a-cli list --session-id test-001
 
 # Check chain status
-a2a-orchestrator status --session-id test-001
+a2a-cli status --session-id test-001
 ```
 
 ## Next steps
@@ -96,3 +132,4 @@ a2a-orchestrator status --session-id test-001
 - [Tools Reference](tools-reference.md) — all 11 MCP tools
 - [Routing Rules](routing-rules.md) — R1–R6 explained
 - [Architecture](architecture.md) — how the pieces fit together
+- [Testing](testing.md) — e2e and unit test results

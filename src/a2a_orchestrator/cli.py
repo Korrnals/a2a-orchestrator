@@ -6,11 +6,11 @@ without starting the MCP server.
 
 Commands::
 
-    a2a-orchestrator send --from agent-a --to agent-b --reason "..." --summary "..." --session-id conv-001
-    a2a-orchestrator list --session-id conv-001 --limit 10
-    a2a-orchestrator status --session-id conv-001
-    a2a-orchestrator agents
-    a2a-orchestrator serve
+    a2a-cli send --from agent-a --to agent-b --reason "..." --summary "..." --session-id conv-001
+    a2a-cli list --session-id conv-001 --limit 10
+    a2a-cli status --session-id conv-001
+    a2a-cli agents
+    a2a-cli serve
 
 Uses ``argparse`` (no extra dependency) so the CLI works in any Python
 3.11+ environment without installing additional packages.
@@ -297,7 +297,7 @@ def _print_json(obj: Any) -> None:
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        prog="a2a-orchestrator",
+        prog="a2a-cli",
         description="A2A orchestrator — route messages between agents.",
     )
     parser.add_argument(

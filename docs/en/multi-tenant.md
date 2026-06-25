@@ -39,7 +39,7 @@ list_tenants()
 Or via CLI:
 
 ```bash
-a2a-orchestrator tenants list
+a2a-cli tenants list
 ```
 
 ## TenantManager
