@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 MD033 -->
 <p align="center">
-  <img src="docs/assets/a2a-banner.svg" alt="a2a-orchestrator" width="100%">
+  <img src="docs/assets/a2a-banner.svg" alt="a2a-cli" width="100%">
 </p>
 
 <h1 align="center">a2a-orchestrator</h1>
@@ -36,7 +36,7 @@
 
 In a typical multi-agent setup, when Agent A delegates to Agent B it
 forwards the entire conversation transcript — costing **30–45×** the
-tokens of a structured message. `a2a-orchestrator` replaces transcript
+tokens of a structured message. `a2a-cli` replaces transcript
 forwarding with a structured handoff message and enforces security
 boundaries (whitelist, loop prevention, depth/budget caps, signature
 verification, destructive-action consent).
@@ -69,7 +69,7 @@ curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scri
 
 ```bash
 git clone https://github.com/Korrnals/a2a-orchestrator.git
-cd a2a-orchestrator
+cd a2a-cli
 pip install -e .
 # Add to VS Code mcp.json — see docs/en/getting-started.md
 python3 -m a2a_orchestrator
@@ -125,4 +125,4 @@ Full documentation index: [docs/](docs/README.md)
 
 ## License
 
-[MIT](LICENSE) — © 2026 a2a-orchestrator contributors.
+[MIT](LICENSE) — © 2026 a2a-cli contributors.

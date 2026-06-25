@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/install.sh — one-command a2a-orchestrator install
+# scripts/install.sh — one-command a2a-cli install
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scripts/install.sh | bash
@@ -7,7 +7,7 @@
 #   curl -fsSL .../install.sh | bash -s -- --venv ~/.a2a-venv --mcp
 #
 # Flags:
-#   --version VERSION   a2a-orchestrator version to install (default: latest)
+#   --version VERSION   a2a-cli version to install (default: latest)
 #   --venv PATH         Create a venv at PATH (default: ~/.a2a-orchestrator/venv)
 #   --no-venv           Install into current Python, no venv
 #   --uv                Use uv instead of pip (auto-detected)
@@ -40,7 +40,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "╔══════════════════════════════════════════════╗"
-echo "║  a2a-orchestrator — MCP server installer     ║"
+echo "║  a2a-cli — MCP server installer     ║"
 echo "╚══════════════════════════════════════════════╝"
 
 command -v uv &>/dev/null && USE_UV=true
@@ -63,12 +63,12 @@ $INSTALL_CMD "git+https://github.com/${REPO}.git@v${VERSION}"
 
 if ! $NO_VENV; then
   mkdir -p "$LOCAL_BIN"
-  cat > "$LOCAL_BIN/a2a-orchestrator" << EOF
+  cat > "$LOCAL_BIN/a2a-cli" << EOF
 #!/usr/bin/env bash
 exec "$VENV_PATH/bin/python3" -m a2a_orchestrator.cli "\$@"
 EOF
-  chmod +x "$LOCAL_BIN/a2a-orchestrator"
-  echo "Launcher: $LOCAL_BIN/a2a-orchestrator"
+  chmod +x "$LOCAL_BIN/a2a-cli"
+  echo "Launcher: $LOCAL_BIN/a2a-cli"
 fi
 
 if [[ "$MCP_SETUP" == "ask" ]]; then
@@ -88,10 +88,10 @@ if not os.path.exists(p): open(p,'w').write('{\"servers\":{}}')
 d = json.load(open(p))
 d.setdefault('servers',{})['a2a-orchestrator'] = {'type':'stdio','command':'$PBIN','args':['-m','a2a_orchestrator']}
 json.dump(d, open(p,'w'), indent=2); open(p,'a').write('\n')
-print(f'Added a2a-orchestrator to {p}')
+print(f'Added a2a-cli to {p}')
 "
 fi
 
 echo ""
-echo "✅ a2a-orchestrator v${VERSION} installed!"
+echo "✅ a2a-cli v${VERSION} installed!"
 echo "Reload VS Code: Ctrl+Shift+P → Reload Window"

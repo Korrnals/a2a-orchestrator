@@ -43,7 +43,7 @@ dev = [
 ]
 
 [project.scripts]
-a2a-orchestrator = "a2a_orchestrator.cli:main"
+a2a-cli = "a2a_orchestrator.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Korrnals/a2a-orchestrator"

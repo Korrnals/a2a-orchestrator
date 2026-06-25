@@ -81,10 +81,10 @@ unregister_agent(agent_id="agent-external-1")
 
 ```bash
 # Step 1: get the challenge nonce
-a2a-orchestrator register --agent-card card.json --public-key key.b64
+a2a-cli register --agent-card card.json --public-key key.b64
 
 # Step 2: sign the nonce and submit
-a2a-orchestrator register --agent-card card.json --public-key key.b64 --signature <sig>
+a2a-cli register --agent-card card.json --public-key key.b64 --signature <sig>
 ```
 
 ## Per-tenant registration

@@ -70,7 +70,7 @@ datasets but ensures search always works.
 ## CLI
 
 ```bash
-a2a-orchestrator search "orders migration" --limit 5
+a2a-cli search "orders migration" --limit 5
 ```
 
 ## See also

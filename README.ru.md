@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 MD033 -->
 <p align="center">
-  <img src="docs/assets/a2a-banner.svg" alt="a2a-orchestrator" width="100%">
+  <img src="docs/assets/a2a-banner.svg" alt="a2a-cli" width="100%">
 </p>
 
 <h1 align="center">a2a-orchestrator</h1>
@@ -36,7 +36,7 @@
 
 В типичной мультиагентной схеме при делегировании от Агента А к Агенту Б
 пересылается весь транскрипт разговора — это стоит в **30–45×** больше
-токенов, чем структурированное сообщение. `a2a-orchestrator` заменяет
+токенов, чем структурированное сообщение. `a2a-cli` заменяет
 пересылку транскрипта структурированным сообщением о передаче и
 контролирует границы безопасности (белый список, защита от циклов,
 лимиты глубины и бюджета, проверка подписей, согласие на деструктивные
@@ -70,7 +70,7 @@ curl -fsSL https://raw.githubusercontent.com/Korrnals/a2a-orchestrator/main/scri
 
 ```bash
 git clone https://github.com/Korrnals/a2a-orchestrator.git
-cd a2a-orchestrator
+cd a2a-cli
 pip install -e .
 # Добавьте в VS Code mcp.json — см. docs/ru/getting-started.md
 python3 -m a2a_orchestrator

@@ -33,10 +33,10 @@ runtimes (CLI, web apps, external services) can use the orchestrator.
 
 ```bash
 # Standalone web server
-a2a-orchestrator web --host 127.0.0.1 --port 8789
+a2a-cli web --host 127.0.0.1 --port 8789
 
 # Or alongside MCP + WS
-a2a-orchestrator serve --all
+a2a-cli serve --all
 ```
 
 ## Examples

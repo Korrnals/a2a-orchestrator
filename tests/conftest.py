@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for a2a-orchestrator tests.
+"""Shared pytest fixtures for a2a-cli tests.
 
 The fixtures here isolate the tests from the real repo layout by
 pointing ``A2A_SCHEMA_DIR`` / ``A2A_CARDS_DIR`` at temp directories with

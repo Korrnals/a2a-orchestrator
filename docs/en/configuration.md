@@ -39,7 +39,7 @@ auto-detection.
 ```json
 {
   "servers": {
-    "a2a-orchestrator": {
+    "a2a-cli": {
       "command": "python3",
       "args": ["-m", "a2a_orchestrator"],
       "env": {
@@ -77,7 +77,7 @@ export MNEMOS_BASE_URL=http://127.0.0.1:8787
 export A2A_WS_PORT=8788
 export A2A_WEB_CORS_ORIGINS=https://my-app.example.com
 export A2A_WEB_API_KEY=secret-key-here
-a2a-orchestrator serve --all
+a2a-cli serve --all
 ```
 
 ## See also

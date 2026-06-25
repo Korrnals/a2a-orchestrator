@@ -69,7 +69,7 @@ search_messages(query="migration", tenant_id="acme-corp", limit=5)
 ## CLI
 
 ```bash
-a2a-orchestrator search "orders migration" --limit 5
+a2a-cli search "orders migration" --limit 5
 ```
 
 ## См. также

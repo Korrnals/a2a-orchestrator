@@ -40,7 +40,7 @@ curl -fsSL .../install.sh | bash -s -- --no-venv
 
 ```bash
 git clone https://github.com/Korrnals/a2a-orchestrator.git
-cd a2a-orchestrator
+cd a2a-cli
 pip install -e .
 
 # Optional: web server dependencies (FastAPI + uvicorn)
@@ -75,7 +75,7 @@ Add the server to your `mcp.json`:
 ```json
 {
   "servers": {
-    "a2a-orchestrator": {
+    "a2a-cli": {
       "command": "python3",
       "args": ["-m", "a2a_orchestrator"],
       "env": {
@@ -119,12 +119,12 @@ load_context(session_id="conv-001", message_id="msg-a1b2c3d4e5f6")
 
 ```bash
 # CLI smoke test — send + list
-a2a-orchestrator send --from agent-a --to agent-b \
+a2a-cli send --from agent-a --to agent-b \
   --reason "smoke test" --summary "hello" --session-id test-001
-a2a-orchestrator list --session-id test-001
+a2a-cli list --session-id test-001
 
 # Check chain status
-a2a-orchestrator status --session-id test-001
+a2a-cli status --session-id test-001
 ```
 
 ## Next steps

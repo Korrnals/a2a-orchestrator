@@ -1,4 +1,4 @@
-# a2a-orchestrator documentation
+# a2a-cli documentation
 
 Documentation index for the **a2a-orchestrator** MCP server —
 Agent-to-Agent routing with loop, budget, and signature controls.

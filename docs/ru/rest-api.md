@@ -34,10 +34,10 @@ REST-обёртка на FastAPI зеркалирует MCP-инструмент
 
 ```bash
 # Только web-сервер
-a2a-orchestrator web --host 127.0.0.1 --port 8789
+a2a-cli web --host 127.0.0.1 --port 8789
 
 # Или вместе с MCP + WS
-a2a-orchestrator serve --all
+a2a-cli serve --all
 ```
 
 ## Примеры
