@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Per-tenant JSONL persistence: non-default tenants store messages in `~/.a2a/<tenant_id>-messages.jsonl` (default tenant keeps the shared path), so A2A messages survive an MCP server restart instead of being lost
+
 ## [1.0.0] - 2026-06-24
 
 ### Changed
