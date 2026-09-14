@@ -70,7 +70,7 @@ class MessageStore:
 
     def __init__(
         self,
-        path: Path | str | None | _DefaultPathSentinel = _DEFAULT_PATH,
+        path: Path | str | _DefaultPathSentinel | None = _DEFAULT_PATH,
         max_bytes: int = DEFAULT_MAX_JSONL_BYTES,
     ) -> None:
         if isinstance(path, _DefaultPathSentinel):

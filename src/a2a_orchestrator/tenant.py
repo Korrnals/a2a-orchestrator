@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .config import FALLBACK_JSONL_PATH
 from .metrics import Metrics
 from .persistence import MessageStore
 from .registry import AgentCardRegistry
@@ -51,6 +52,23 @@ def _validate_tenant_id(tenant_id: str) -> None:
         )
 
 
+def _tenant_jsonl_path(tenant_id: str) -> Path:
+    """Return the per-tenant JSONL fallback path.
+
+    The default tenant uses the shared ``~/.a2a/a2a-messages.jsonl``
+    (backward compat). Other tenants get
+    ``~/.a2a/<tenant_id>-messages.jsonl`` so their messages survive an
+    MCP server restart instead of being lost when the in-memory store
+    is rebuilt from scratch.
+
+    The tenant_id is validated by ``_validate_tenant_id`` before this
+    function is called, so the path join is safe (no traversal).
+    """
+    if tenant_id == DEFAULT_TENANT:
+        return FALLBACK_JSONL_PATH
+    return FALLBACK_JSONL_PATH.parent / f"{tenant_id}-messages.jsonl"
+
+
 @dataclass
 class TenantContext:
     """All per-tenant state in one container.
@@ -75,7 +93,13 @@ class TenantContext:
         # correct cards-dir-aware instance.
         self.registry = AgentCardRegistry(cards_dir=Path("a2a/agents"))
         self.session_store = SessionStore(max_sessions=256)
-        self.message_store = MessageStore(path=None)  # in-memory by default
+        # C2/D1 fix: per-tenant JSONL persistence. Previously
+        # ``MessageStore(path=None)`` (in-memory only) meant every
+        # ``send_a2a`` message was lost on MCP server restart — after
+        # a VS Code reload the in-memory store was rebuilt from scratch
+        # and A2A handoffs silently disappeared. Now each tenant gets
+        # a dedicated JSONL file so messages survive restarts.
+        self.message_store = MessageStore(path=_tenant_jsonl_path(self.tenant_id))
         self.metrics = Metrics()
         self.saga_store = SagaStore(max_sagas=128)
         self.key_store = KeyStore()
