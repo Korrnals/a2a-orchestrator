@@ -36,7 +36,7 @@
     },
     "agent_file": {
       "type": "string",
-      "pattern": "^([a-z][a-z0-9-]*/)*[a-z][a-z0-9-]*\\.agent\\.md$",
+      "pattern": "^([a-z0-9][a-z0-9-]*/)*[a-z0-9][a-z0-9-]*\\.agent\\.md$",
       "description": "Path to the agent definition file, relative to plugin root."
     },
     "description": {
